@@ -10,6 +10,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailId, setEmailId] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const dispatch = useDispatch();
   const nevigate = useNavigate();
 
@@ -26,7 +27,8 @@ const Login = () => {
     dispatch(addUser(res.data));
     return nevigate("/");
     }catch(err){
-      console.error(err);
+      setError(err?.response?.data || "Something went wrong");
+      // console.error(err);
     }
   }
   return (
@@ -84,7 +86,7 @@ const Login = () => {
         Forgot password?
       </a>
     </div>
-
+    <p className='text-red-500 text-1xl mb-2'>{error}</p>
     <button
       type="submit"
       onClick={handlesubmit}

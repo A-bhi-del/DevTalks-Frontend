@@ -1,10 +1,26 @@
 import React from "react";
-import { useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+import { removeUser } from "../utils/userSlice";
+import axios from "axios";
 
 const Navbar = () => {
 
   const user = useSelector((store) => store.user);
+  const dispatch = useDispatch();
+  const nevigate = useNavigate();
+
+  const handleLogout = async () => {
+    try{
+      await axios.post(BASE_URL + "/logout", {}, {withCredentials : true});
+      dispatch(removeUser(null));
+      nevigate("/login");
+    } 
+    catch(err){
+      console.error(err);
+    }
+  }
   return (
   <div className="navbar bg-base-100 shadow-sm">
     <div className="navbar-start">
@@ -29,15 +45,15 @@ const Navbar = () => {
           tabIndex={0}
           className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow"
         >
-          <li><a>Homepage</a></li>
-          <li><a>Portfolio</a></li>
-          <li><a>About</a></li>
+          <li><Link to="/connection">Friends</Link></li>
+          <li><Link to="/requests">Requests</Link></li>
+          {/* <li><a>About</a></li> */}
         </ul>
       </div>
     </div>
 
     <div className="navbar-center">
-      <a className="btn btn-ghost text-xl">daisyUI</a>
+      <a className="btn btn-ghost text-xl">Dev-Tindar</a>
     </div>
 
     <div className="navbar-end gap-2">
@@ -94,7 +110,7 @@ const Navbar = () => {
         >
           <li><Link to="/profile" >Profile</Link></li>
           <li><a>Settings</a></li>
-          <li><Link to="/logout">Logout</Link></li>
+          <li><Link onClick={handleLogout}>Logout</Link></li>
         </ul>
       </div>
     </div>

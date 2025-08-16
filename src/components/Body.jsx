@@ -32,7 +32,7 @@ const Body = () => {
   }, [])
   
   return (
-    <div>
+    <div className='bg-gradient-to-br from-gray-900 via-black to-gray-800 '>
       <Navbar/>
       <Outlet/>
       <Footer/>

@@ -8,6 +8,7 @@ import { Provider } from "react-redux";
 import appStore from "./utils/appStore";
 import Feed from "./components/Feed";
 import Signup from "./components/SignUp";
+import FriendsSection from "./components/Connection";
 
 function App() {
   return (
