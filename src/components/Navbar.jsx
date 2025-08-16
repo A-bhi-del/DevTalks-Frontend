@@ -53,7 +53,7 @@ const Navbar = () => {
     </div>
 
     <div className="navbar-center">
-      <a className="btn btn-ghost text-xl">Dev-Tindar</a>
+      <Link className="btn btn-ghost text-xl" to="/">DevConnect</Link>
     </div>
 
     <div className="navbar-end gap-2">

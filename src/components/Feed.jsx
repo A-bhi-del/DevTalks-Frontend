@@ -44,6 +44,7 @@ const FeedPage = () => {
         
         {/* Show ek hi card at a time */}
         <FeedCard user={feed[currentIndex]} />
+        
 
         <div className="flex gap-4 mt-6">
           <button
