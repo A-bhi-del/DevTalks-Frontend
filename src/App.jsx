@@ -8,7 +8,8 @@ import { Provider } from "react-redux";
 import appStore from "./utils/appStore";
 import Feed from "./components/Feed";
 import Signup from "./components/SignUp";
-import FriendsSection from "./components/Connection";
+import Connection from "./components/Connection";
+import Request from "./components/Request";
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
               <Route path="/" element={<Feed/>}/>
               <Route path="/profile" element={<Profile />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/Connection" element={<Connection />} />
+              <Route path="/Request" element={<Request />} />
             </Route>
           </Routes>
         </BrowserRouter>

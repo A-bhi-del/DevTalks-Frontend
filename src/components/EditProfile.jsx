@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { BASE_URL } from "../utils/constants";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import FeedCard from "./FeedCard";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import UserCard from "./UserCard";
+import { addUser } from "../utils/userSlice";
 
-const EditProfile = ({ user }) => {
-  const [firstName, setFirstName] = useState(user.firstName);
-  const [lastName, setLastName] = useState(user.lastName);
-  const [age, setAge] = useState(user.age);
-  const [about, setAbout] = useState(user.about);
-  const [photoUrl, setPhotoUrl] = useState(user.photoUrl);
-  const [gender, setGender] = useState(user.gender);
+const EditProfile = () => {
+  const user = useSelector((store) => store.user);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [age, setAge] = useState("");
+  const [about, setAbout] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [gender, setGender] = useState("");
   const [error, setError] = useState("");
 
   const [showtoast, setShowtoast] = useState(false);
@@ -46,8 +48,24 @@ const EditProfile = ({ user }) => {
     }
   };
 
+  useEffect(() => {
+    setFirstName(user?.firstName);
+    setLastName(user?.lastName);
+    setAge(user?.age);
+    setAbout(user?.about);
+    setPhotoUrl(user?.photoUrl);
+    setGender(user?.gender);
+  }, [user]);
+
   return (
     <>
+     {showtoast && (
+        <div className="toast toast-top toast-center">
+          <div className="alert alert-success">
+            <span>Changes saved successfully.</span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-center gap-10">
         <div className="flex flex-col items-center justify-center mt-10 mb-10 w-120 ml-45 ">
           <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl bg-white/10 backdrop-blur-lg border border-white/20 transition-all duration-300 hover:shadow-blue-500/30">
@@ -162,13 +180,6 @@ const EditProfile = ({ user }) => {
           user={{ firstName, lastName, age, gender, photoUrl, about }}
         />
       </div>
-      {showtoast && (
-        <div className="toast toast-top toast-center">
-          <div className="alert alert-success">
-            <span>Changes saved successfully.</span>
-          </div>
-        </div>
-      )}
     </>
   );
 };

@@ -7,7 +7,7 @@ const UserCard = ({ user }) => {
       {/* Profile Image */}
       <div className="h-64 w-full overflow-hidden relative">
         <img
-          src={user.photoUrl}
+          src={user.photoUrl || "https://via.placeholder.com/150"}
           alt={`${user.firstName} ${user.lastName}`}
           className="w-full h-full object-cover"
         />

@@ -44,10 +44,10 @@ const Navbar = () => {
             className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow"
           >
             <li>
-              <Link to="/connection">Friends</Link>
+              <Link to="/Connection">Friends</Link>
             </li>
             <li>
-              <Link to="/requests">Requests</Link>
+              <Link to="/Request">Requests</Link>
             </li>
             {/* <li><a>About</a></li> */}
           </ul>
@@ -56,7 +56,7 @@ const Navbar = () => {
 
       <div className="navbar-center">
         <Link className="btn btn-ghost text-xl" to={user ? "/" : "/login"}>
-          DevConnect
+          Dev.Talks
         </Link>
       </div>
 
