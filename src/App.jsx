@@ -10,6 +10,7 @@ import Feed from "./components/Feed";
 import Signup from "./components/SignUp";
 import Connection from "./components/Connection";
 import Request from "./components/Request";
+import Updates from "./components/Updates";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/Connection" element={<Connection />} />
               <Route path="/Request" element={<Request />} />
+              <Route path="/update" element={<Updates />} />
             </Route>
           </Routes>
         </BrowserRouter>
