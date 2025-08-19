@@ -3,7 +3,7 @@ import React from 'react'
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { addUser } from '../utils/userSlice';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../utils/constants';
 
 const Login = () => {
@@ -24,7 +24,7 @@ const Login = () => {
       }
     );
     console.log(res.data);
-    dispatch(addUser(res.data));
+    dispatch(addUser(res.data.data));
     return nevigate("/");
     }catch(err){
       setError(err?.response?.data || "Something went wrong");
@@ -97,9 +97,9 @@ const Login = () => {
 
     <p className="text-center text-sm text-gray-400 mt-6">
       Don’t have an account?{" "}
-      <a href="/signup" className="text-blue-400 hover:text-blue-300 font-medium transition duration-200">
+      <Link to={"/signup"} className="text-blue-400 hover:text-blue-300 font-medium transition duration-200">
         SignUp
-      </a>
+      </Link>
     </p>
   </div>
 </div>

@@ -1,8 +1,11 @@
 import React from "react";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
+import { useDispatch } from "react-redux";
+import { removefeed } from "../utils/feedSlice";
 
 const FeedCard = ({ user }) => {
+  const dispatch = useDispatch();
   const interestedOrignored = async (status, toUserId) => {
     try {
       await axios.post(
@@ -12,6 +15,8 @@ const FeedCard = ({ user }) => {
           withCredentials: true,
         }
       );
+
+      dispatch(removefeed(toUserId));
     } catch (err) {
       console.error(err);
     }

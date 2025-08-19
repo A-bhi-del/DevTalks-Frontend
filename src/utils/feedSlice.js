@@ -7,9 +7,11 @@ const feedSlice = createSlice({
         addfeed: (state, action) => {
             return action.payload;
         },
+        // remeove ka use state ko filter krke check krke krte hai... 
         removefeed: (state, action) => {
-            return null;
-        }
+            const newArray = state.filter((u) => u._id !== action.payload);
+            return newArray;
+        } 
     }
 })
 

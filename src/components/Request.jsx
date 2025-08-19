@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { BASE_URL } from "../utils/constants";
 import { useDispatch, useSelector } from "react-redux";
 import { addConnection } from "../utils/connectionSlice";
-import { addRequest } from "../utils/requestSlice";
+import { addRequest, removeRequest } from "../utils/requestSlice";
 
 const Request = () => {
     const request = useSelector((store) => store.request);
@@ -32,6 +32,7 @@ const Request = () => {
        })
 
        setToastMsg(status === "accepted" ? "You have accepted the request" : "You have rejected the request");
+       dispatch(removeRequest(requestId));
        setShowtoast(true);
        setTimeout(() => {
          setShowtoast(false);
