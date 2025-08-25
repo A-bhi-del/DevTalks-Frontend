@@ -1,31 +1,30 @@
-import axios from 'axios';
-import React, { useEffect } from 'react'
-import { BASE_URL } from '../utils/constants';
-import { useDispatch, useSelector } from 'react-redux';
-import { addConnection } from '../utils/connectionSlice';
+import axios from "axios";
+import React, { useEffect } from "react";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch, useSelector } from "react-redux";
+import { addConnection } from "../utils/connectionSlice";
+import { Link } from "react-router-dom";
 
 const Connection = () => {
   const connection = useSelector((store) => store.connection);
   const dispatch = useDispatch();
 
-  const fetchConnections = async() => {
-    try{
+  const fetchConnections = async () => {
+    try {
       const connections = await axios.get(BASE_URL + "/user/connections", {
         withCredentials: true,
-      })
+      });
 
       console.log(connections.data.data);
       dispatch(addConnection(connections.data.data));
-
-    }catch(err) {
+    } catch (err) {
       console.error(err);
     }
-  }
+  };
 
   useEffect(() => {
     fetchConnections();
   }, []);
-
 
   if (!connection) return null;
   if (connection.length === 0)
@@ -53,15 +52,19 @@ const Connection = () => {
                 className="w-12 h-12 rounded-full border"
               />
               <div>
-                <h2 className="font-semibold text-lg">{c.firstName + " " + c.lastName}</h2>
+                <h2 className="font-semibold text-lg">
+                  {c.firstName + " " + c.lastName}
+                </h2>
                 <p className="text-sm text-gray-500">{c.about}</p>
               </div>
             </div>
 
             {/* Right side: button */}
-            <button className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg">
-              Message
-            </button>
+            <Link to={"/message/" + c._id}>
+              <button className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg">
+                Message
+              </button>
+            </Link>
           </div>
         ))}
       </div>

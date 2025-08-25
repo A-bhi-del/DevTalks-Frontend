@@ -55,6 +55,7 @@ const SignUpPage = () => {
             <input
               type="text"
               value={firstName}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               onChange={(e) => setFirstName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-500 bg-white/10 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
               placeholder="First name"
@@ -68,6 +69,7 @@ const SignUpPage = () => {
             <input
               type="text"
               value={lastName}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               onChange={(e) => setLastName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-500 bg-white/10 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
               placeholder="Last name"
@@ -85,6 +87,7 @@ const SignUpPage = () => {
             min="13"
             max="120"
             value={age}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             onChange={(e) => setAge(e.target.value)}
             className="w-full px-3 py-2 border border-gray-500 bg-white/10 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
             placeholder="Enter your age"
@@ -99,6 +102,7 @@ const SignUpPage = () => {
           <input
             type="emailId"
             value={emailId}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             onChange={(e) => setEmailId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-500 bg-white/10 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
             placeholder="Enter your email"
@@ -114,6 +118,7 @@ const SignUpPage = () => {
             <input
               type={showPassword ? "text" : "password"}
               value={password}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 pr-10 border border-gray-500 bg-white/10 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
               placeholder="Enter your password"
@@ -122,6 +127,7 @@ const SignUpPage = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
             >
               {showPassword ? "👁️" : "👁️‍🗨️"}
@@ -132,6 +138,7 @@ const SignUpPage = () => {
         <button
           type="submit"
           onClick={handleSubmit}
+          
           className="mt-6 w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 px-4 rounded-lg font-medium tracking-wide shadow-lg hover:shadow-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-300"
         >
           Sign Up

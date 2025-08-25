@@ -11,6 +11,7 @@ import Signup from "./components/SignUp";
 import Connection from "./components/Connection";
 import Request from "./components/Request";
 import Updates from "./components/Updates";
+import Message from "./components/Message";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
               <Route path="/Connection" element={<Connection />} />
               <Route path="/Request" element={<Request />} />
               <Route path="/update" element={<Updates />} />
+              <Route path="/message/:targetuserId" element={<Message />} />
             </Route>
           </Routes>
         </BrowserRouter>

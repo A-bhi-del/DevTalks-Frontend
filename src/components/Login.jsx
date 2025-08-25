@@ -46,6 +46,7 @@ const Login = () => {
         type="email"
         name="email"
         value={emailId}
+        onKeyDown={(e) => e.key === "Enter" && handlesubmit()}
         onChange={(e) => setEmailId(e.target.value)}
         className="w-full px-4 py-2 border border-gray-500 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
         placeholder="Enter your email"
@@ -61,6 +62,7 @@ const Login = () => {
           type={showPassword ? "text" : "password"}
           name="password"
           value={password}
+          onKeyDown={(e) => e.key === "Enter" && handlesubmit()}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-4 py-2 pr-10 border border-gray-500 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
           placeholder="Enter your password"
@@ -90,6 +92,7 @@ const Login = () => {
     <button
       type="submit"
       onClick={handlesubmit}
+      
       className="w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg font-medium shadow-lg hover:shadow-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-300"
     >
       Login
