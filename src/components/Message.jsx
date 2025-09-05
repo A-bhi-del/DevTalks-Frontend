@@ -6,10 +6,14 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
 import EmojiPicker from "emoji-picker-react"; // ✅ Emoji picker import
+import { p } from "framer-motion/client";
 
 const Message = () => {
   const { targetuserId } = useParams();
   const [messages, setMessages] = useState([]);
+  const [groupedMessages, setGroupedMessages] = useState([]);
+  const [recipientName, setRecipientName] = useState('User');
+  const [photoURL, setPhotoURL] = useState("");
   const [newmessage, setNewmessage] = useState("");
   const [showEmoji, setShowEmoji] = useState(false); // ✅ emoji toggle state
   const [listening, setListening] = useState(false); // ✅ mic state
@@ -20,21 +24,36 @@ const Message = () => {
   const bottomRef = useRef(null);
 
   const saveMessage = async (targetuserId) => {
-    const messageSave = await axios.get(`${BASE_URL}/chat/${targetuserId}`, {
-      withCredentials: true,
-    });
+    try {
+      const messageSave = await axios.get(`${BASE_URL}/chat/${targetuserId}`, {
+        withCredentials: true,
+      });
 
-    const chatmessage = messageSave?.data?.messages.map((msg) => {
-      const { SenderId, text } = msg;
-      return {
-        firstName: SenderId?.firstName,
-        lastName: SenderId?.lastName,
-        text,
-        timestamp: msg?.createdAt,
-      };
-    });
+      // Get recipient's name from the first message where they are the sender
+      const recipientMsg = messageSave?.data?.messages.find(
+        msg => msg.SenderId?._id === targetuserId
+      );
+      
+      if (recipientMsg?.SenderId) {
+        const { firstName, lastName, photoUrl } = recipientMsg.SenderId;
+        setPhotoURL(photoUrl);
+        setRecipientName(`${firstName || ''} ${lastName || ''}`.trim() || 'User');
+      }
 
-    setMessages(chatmessage);
+      const chatmessage = messageSave?.data?.messages.map((msg) => {
+        const { SenderId, text } = msg;
+        return {
+          firstName: SenderId?.firstName,
+          lastName: SenderId?.lastName,
+          text,
+          timestamp: msg?.createdAt,
+        };
+      });
+
+      setMessages(chatmessage);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
   };
 
   useEffect(() => {
@@ -75,18 +94,18 @@ const Message = () => {
     setNewmessage("");
   };
 
-  // ✅ Scroll neeche jaane ka effect
+  // Scroll neeche jaane ka effect
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ Emoji click handle
+  // Emoji click handle
   const onEmojiClick = (emojiData) => {
     setNewmessage((prev) => prev + emojiData.emoji);
     setShowEmoji(false);
   };
 
-  // ✅ Voice to text (SpeechRecognition)
+  // Voice to text (SpeechRecognition)
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition;
@@ -114,54 +133,138 @@ const Message = () => {
     recognition.onend = () => setListening(false);
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Group messages by date
+  const groupMessages = (msgs) => {
+    if (!msgs || !msgs.length) return [];
+    
+    const result = [];
+    let currentDate = null;
+    
+    msgs.forEach((msg, idx) => {
+      const msgDate = new Date(msg.timestamp).toDateString();
+      
+      if (msgDate !== currentDate) {
+        currentDate = msgDate;
+        result.push({
+          type: 'date',
+          date: msg.timestamp,
+          id: `date-${idx}`
+        });
+      }
+      
+      result.push({
+        ...msg,
+        type: 'message',
+        id: `msg-${idx}`
+      });
+    });
+    
+    return result;
+  };
+
+  // Update grouped messages when messages change
+  useEffect(() => {
+    setGroupedMessages(groupMessages(messages));
+  }, [messages]);
+
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto h-[600px] border rounded-2xl shadow-lg overflow-hidden bg-white dark:bg-zinc-900 m-10">
       {/* Header */}
-      <div className="flex items-center justify-center p-3 border-b bg-blue-600 text-white text-4xl">
-        <h2 className="font-semibold ">Chat </h2>
-        <span className="bg-green-400 rounded-3xl"></span>
+      <div className="flex items-center justify-between p-3 border-b bg-blue-600 text-white">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blue-600 font-bold text-lg">
+            {photoURL ? (
+              <img
+                src={photoURL}
+                alt={`${recipientName}'s profile`}
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <span className="text-xl font-bold">
+                {recipientName.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div>
+            <h2 className="font-semibold text-lg">{recipientName}</h2>
+            <div className="flex items-center space-x-1">
+              <span className="w-2 h-2 rounded-full bg-green-400"></span>
+              <span className="text-xs opacity-80">Online</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Messages area */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50 dark:bg-zinc-800">
-        {messages.length === 0 && (
+        {groupedMessages.length === 0 ? (
           <p className="text-center text-gray-500">No messages yet...</p>
-        )}
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={
-              "chat " +
-              (user.firstName === msg.firstName ? "chat-end" : "chat-start")
+        ) : (
+          groupedMessages.map((item) => {
+            if (item.type === 'date') {
+              return (
+                <div key={item.id} className="flex justify-center my-2">
+                  <div className="bg-gray-200 dark:bg-zinc-700 text-xs text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full">
+                    {formatDate(item.date)}
+                  </div>
+                </div>
+              );
             }
-          >
-            <div
-              className={
-                "chat-bubble " +
-                (user.firstName === msg.firstName
-                  ? "bg-gray-500 text-white"
-                  : "bg-blue-400 text-white")
-              }
-            >
-              {/* Naam */}
-              <div className="text-sm font-semibold mb-1">
-                {msg.firstName + " " + msg.lastName}
-              </div>
+            
+            const msg = item;
+            return (
+              <div
+                key={msg.id}
+                className={
+                  "chat " +
+                  (user.firstName === msg.firstName ? "chat-end" : "chat-start")
+                }
+              >
+                <div
+                  className={
+                    "chat-bubble " +
+                    (user.firstName === msg.firstName
+                      ? "bg-gray-500 text-white"
+                      : "bg-blue-400 text-white")
+                  }
+                >
+                  {/* Naam */}
+                  <div className="text-sm font-semibold mb-1">
+                    {msg.firstName + " " + msg.lastName}
+                  </div>
+                  {/* Message */}
+                  <div className="text-base break-words">{msg.text}</div>
 
-              {/* Message */}
-              <div className="text-base">{msg.text}</div>
-
-              {/* Time */}
-              <div className="text-[10px] opacity-70 mt-1 text-right">
-                {new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                  {/* Time */}
+                  <div className="text-[10px] opacity-70 mt-1 text-right">
+                    {new Date(msg.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-        {/* ✅ Scroll ke liye dummy div */}
+            );
+          })
+        )}
+        {/* Scroll ke liye dummy div */}
         <div ref={bottomRef} />
       </div>
 
