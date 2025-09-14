@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import Navbar from './Navbar_temp'
+import Navbar from './navbar'
 import { Outlet, useNavigate } from 'react-router-dom'
 import Footer from './footer'
 import { BASE_URL } from '../utils/constants'

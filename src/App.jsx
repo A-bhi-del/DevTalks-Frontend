@@ -2,16 +2,16 @@ import React from "react";
 import "./index.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Body from "./components/body";
-import Login from "./components/Login_temp";
-import Profile from "./components/Profile_temp";
+import Login from "./components/login";
+import Profile from "./components/profile";
 import { Provider } from "react-redux";
 import appStore from "./utils/appStore";
 import Feed from "./components/feed";
-import Signup from "./components/Signup_temp";
+import Signup from "./components/signup";
 import Connection from "./components/connection";
-import Request from "./components/Request_temp";
-import Updates from "./components/Updates._tempjsx";
-import Message from "./components/Message_temp";
+import Request from "./components/request";
+import Updates from "./components/updates..jsx";
+import Message from "./components/message";
 
 function App() {
   return (
