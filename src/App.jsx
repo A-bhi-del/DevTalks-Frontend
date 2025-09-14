@@ -1,17 +1,17 @@
 import React from "react";
 import "./index.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Body from "./components/Body";
-import Login from "./components/Login";
-import Profile from "./components/Profile";
+import Body from "./components/body";
+import Login from "./components/login";
+import Profile from "./components/profile";
 import { Provider } from "react-redux";
 import appStore from "./utils/appStore";
-import Feed from "./components/Feed";
-import Signup from "./components/SignUp";
-import Connection from "./components/Connection";
-import Request from "./components/Request";
-import Updates from "./components/Updates";
-import Message from "./components/Message";
+import Feed from "./components/feed";
+import Signup from "./components/signup";
+import Connection from "./components/connection";
+import Request from "./components/request";
+import Updates from "./components/updates";
+import Message from "./components/message";
 
 function App() {
   return (
