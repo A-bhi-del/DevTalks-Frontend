@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { BASE_URL } from "../utils/constants";
 import { useDispatch, useSelector } from "react-redux";
-import FeedCard from "./feedcard";
+import FeedCard from "./Feedcard";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import UserCard from "./usercard";
+import UserCard from "./Usercard";
 import { addUser } from "../utils/userSlice";
 
 const EditProfile = () => {
