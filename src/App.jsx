@@ -6,7 +6,7 @@ import Login from "./components/Login";
 import Profile from "./components/Profile";
 import { Provider } from "react-redux";
 import appStore from "./utils/appStore";
-import Feed from "./components/Feed";
+import Feed from "./components/feed";
 import Signup from "./components/Signup";
 import Connection from "./components/connection";
 import Request from "./components/Request";
