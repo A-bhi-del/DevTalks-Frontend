@@ -12,15 +12,15 @@ const Message = () => {
   const { targetuserId } = useParams();
   const [messages, setMessages] = useState([]);
   const [groupedMessages, setGroupedMessages] = useState([]);
-  const [recipientName, setRecipientName] = useState('User');
+  const [recipientName, setRecipientName] = useState("User");
   const [photoURL, setPhotoURL] = useState("");
   const [newmessage, setNewmessage] = useState("");
-  const [showEmoji, setShowEmoji] = useState(false); // ✅ emoji toggle state
-  const [listening, setListening] = useState(false); // ✅ mic state
+  const [userStatus, setUserStatus] = useState({});
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [listening, setListening] = useState(false);
   const user = useSelector((store) => store.user);
   const userId = user?._id;
 
-  // ✅ Auto scroll ke liye ref
   const bottomRef = useRef(null);
 
   const saveMessage = async (targetuserId) => {
@@ -29,15 +29,16 @@ const Message = () => {
         withCredentials: true,
       });
 
-      // Get recipient's name from the first message where they are the sender
       const recipientMsg = messageSave?.data?.messages.find(
-        msg => msg.SenderId?._id === targetuserId
+        (msg) => msg.SenderId?._id === targetuserId
       );
-      
+
       if (recipientMsg?.SenderId) {
         const { firstName, lastName, photoUrl } = recipientMsg.SenderId;
         setPhotoURL(photoUrl);
-        setRecipientName(`${firstName || ''} ${lastName || ''}`.trim() || 'User');
+        setRecipientName(
+          `${firstName || ""} ${lastName || ""}`.trim() || "User"
+        );
       }
 
       const chatmessage = messageSave?.data?.messages.map((msg) => {
@@ -52,7 +53,7 @@ const Message = () => {
 
       setMessages(chatmessage);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error("Error fetching messages:", error);
     }
   };
 
@@ -62,7 +63,9 @@ const Message = () => {
 
   useEffect(() => {
     if (!userId) return;
-    const socket = createsocketConnection();
+    const socket = createsocketConnection(userId);
+
+    console.log("frontend send", userId);
 
     socket.emit("joinchat", {
       firstName: user.firstName,
@@ -75,6 +78,13 @@ const Message = () => {
         ...messages,
         { text, firstName, lastName, timestamp: new Date() },
       ]);
+    });
+
+    socket.on("updateuserStatus", ({ userId, isOnline, lastSeen }) => {
+      setUserStatus((prev) => ({
+        ...prev,
+        [userId]: { isOnline, lastSeen },
+      }));
     });
 
     return () => {
@@ -139,43 +149,43 @@ const Message = () => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) return 'Today';
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
     });
   };
 
   // Group messages by date
   const groupMessages = (msgs) => {
     if (!msgs || !msgs.length) return [];
-    
+
     const result = [];
     let currentDate = null;
-    
+
     msgs.forEach((msg, idx) => {
       const msgDate = new Date(msg.timestamp).toDateString();
-      
+
       if (msgDate !== currentDate) {
         currentDate = msgDate;
         result.push({
-          type: 'date',
+          type: "date",
           date: msg.timestamp,
-          id: `date-${idx}`
+          id: `date-${idx}`,
         });
       }
-      
+
       result.push({
         ...msg,
-        type: 'message',
-        id: `msg-${idx}`
+        type: "message",
+        id: `msg-${idx}`,
       });
     });
-    
+
     return result;
   };
 
@@ -198,15 +208,38 @@ const Message = () => {
               />
             ) : (
               <span className="text-xl font-bold">
-                {recipientName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {recipientName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
               </span>
             )}
           </div>
           <div>
             <h2 className="font-semibold text-lg">{recipientName}</h2>
             <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-green-400"></span>
-              <span className="text-xs opacity-80">Online</span>
+              {userStatus[targetuserId]?.isOnline ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                  <span className="text-xs opacity-80">Online</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                  <span className="text-xs opacity-80">
+                    Last seen:{" "}
+                    {userStatus[targetuserId]?.lastSeen
+                      ? new Date(
+                          userStatus[targetuserId].lastSeen
+                        ).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Offline"}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -218,7 +251,7 @@ const Message = () => {
           <p className="text-center text-gray-500">No messages yet...</p>
         ) : (
           groupedMessages.map((item) => {
-            if (item.type === 'date') {
+            if (item.type === "date") {
               return (
                 <div key={item.id} className="flex justify-center my-2">
                   <div className="bg-gray-200 dark:bg-zinc-700 text-xs text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full">
@@ -227,7 +260,7 @@ const Message = () => {
                 </div>
               );
             }
-            
+
             const msg = item;
             return (
               <div
