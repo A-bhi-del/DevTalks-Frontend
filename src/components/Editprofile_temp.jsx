@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import FeedCard from "./Feedcard";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import UserCard from "./Usercard";
+import UserCard from "./Usercard_temp";
 import { addUser } from "../utils/userSlice";
 
 const EditProfile = () => {
