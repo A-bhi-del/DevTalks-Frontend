@@ -24,6 +24,10 @@ const Login = () => {
       }
     );
     console.log(res.data);
+    // Save JWT token if provided for socket auth
+    if (res?.data?.token) {
+      try { localStorage.setItem('token', res.data.token); } catch {}
+    }
     dispatch(addUser(res.data.data));
     return nevigate("/");
     }catch(err){

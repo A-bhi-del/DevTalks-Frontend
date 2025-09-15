@@ -33,6 +33,9 @@ const SignUpPage = () => {
         }
       );
       console.log(res.data);
+      if (res?.data?.token) {
+        try { localStorage.setItem('token', res.data.token); } catch {}
+      }
       dispatch(addUser(res.data.data));
       return navigate("/");
     } catch (err) {

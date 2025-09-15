@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Send } from "lucide-react";
-import createsocketConnection from "../utils/socket";
+import getSocket, { disconnectSocket } from "../utils/socket";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
 import EmojiPicker from "emoji-picker-react"; // ✅ Emoji picker import
-import { p } from "framer-motion/client";
 
 const Message = () => {
   const { targetuserId } = useParams();
@@ -44,6 +43,7 @@ const Message = () => {
       const chatmessage = messageSave?.data?.messages.map((msg) => {
         const { SenderId, text } = msg;
         return {
+          senderId: SenderId?._id,
           firstName: SenderId?.firstName,
           lastName: SenderId?.lastName,
           text,
@@ -63,44 +63,60 @@ const Message = () => {
 
   useEffect(() => {
     if (!userId) return;
-    const socket = createsocketConnection(userId);
+    const socket = getSocket(userId);
 
-    console.log("frontend send", userId);
+    const doJoin = () => socket.emit("joinChat", { targetuserId });
+    if (socket.connected) {
+      doJoin();
+    } else {
+      socket.once("connect", doJoin);
+    }
 
-    socket.emit("joinchat", {
-      firstName: user.firstName,
-      userId,
-      targetuserId,
-    });
-
-    socket.on("receivemessage", ({ text, firstName, lastName }) => {
+    const handleReceive = ({ text, firstName, lastName, senderId, createdAt }) => {
       setMessages((messages) => [
         ...messages,
-        { text, firstName, lastName, timestamp: new Date() },
+        { text, firstName, lastName, senderId, timestamp: createdAt || new Date() },
       ]);
-    });
+    };
 
-    socket.on("updateuserStatus", ({ userId, isOnline, lastSeen }) => {
+    const handleStatus = ({ userId, isOnline, lastSeen }) => {
       setUserStatus((prev) => ({
         ...prev,
         [userId]: { isOnline, lastSeen },
       }));
-    });
+    };
+
+    socket.on("receiveMessage", handleReceive);
+    socket.on("updateUserStatus", handleStatus);
 
     return () => {
-      socket.disconnect();
+      socket.off("connect", doJoin);
+      socket.off("receiveMessage", handleReceive);
+      socket.off("updateUserStatus", handleStatus);
+      // Do not disconnect globally here; component unmount shouldn't kill app-wide socket
     };
-  }, [userId, targetuserId]);
+  }, [userId, targetuserId, user?.firstName]);
 
   const handleSend = () => {
-    const socket = createsocketConnection();
-    socket.emit("sendmessage", {
+    if (!newmessage.trim()) return;
+    const socket = getSocket(userId);
+    socket.emit("sendMessage", {
       text: newmessage,
-      userId,
       targetuserId,
       firstName: user.firstName,
       lastName: user.lastName,
     });
+    // Optimistic UI update
+    setMessages((messages) => [
+      ...messages,
+      {
+        text: newmessage,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        senderId: userId,
+        timestamp: new Date(),
+      },
+    ]);
     setNewmessage("");
   };
 
