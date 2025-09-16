@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Send, Phone, Video, ArrowLeft } from "lucide-react";
 import getSocket, { disconnectSocket } from "../utils/socket";
 import { useSelector } from "react-redux";
 import axios from "axios";
@@ -9,12 +9,14 @@ import EmojiPicker from "emoji-picker-react"; // ✅ Emoji picker import
 
 const Message = () => {
   const { targetuserId } = useParams();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [groupedMessages, setGroupedMessages] = useState([]);
   const [recipientName, setRecipientName] = useState("User");
   const [photoURL, setPhotoURL] = useState("");
   const [newmessage, setNewmessage] = useState("");
   const [userStatus, setUserStatus] = useState({});
+  const [onlineSince, setOnlineSince] = useState({});
   const [showEmoji, setShowEmoji] = useState(false);
   const [listening, setListening] = useState(false);
   const user = useSelector((store) => store.user);
@@ -33,11 +35,16 @@ const Message = () => {
       );
 
       if (recipientMsg?.SenderId) {
-        const { firstName, lastName, photoUrl } = recipientMsg.SenderId;
+        const { firstName, lastName, photoUrl, isOnline, lastSeen } = recipientMsg.SenderId;
         setPhotoURL(photoUrl);
         setRecipientName(
           `${firstName || ""} ${lastName || ""}`.trim() || "User"
         );
+        // seed initial presence if available from populated SenderId
+        setUserStatus((prev) => ({
+          ...prev,
+          [targetuserId]: { isOnline: !!isOnline, lastSeen: lastSeen || null },
+        }));
       }
 
       const chatmessage = messageSave?.data?.messages.map((msg) => {
@@ -73,10 +80,44 @@ const Message = () => {
     }
 
     const handleReceive = ({ text, firstName, lastName, senderId, createdAt }) => {
-      setMessages((messages) => [
-        ...messages,
-        { text, firstName, lastName, senderId, timestamp: createdAt || new Date() },
-      ]);
+      setMessages((messages) => {
+        // Check if this message is from current user (optimistic update)
+        if (senderId === userId) {
+          // Replace temporary message with real message
+          return messages.map(msg => 
+            msg.tempId ? {
+              ...msg,
+              tempId: undefined, // Remove temp ID
+              timestamp: createdAt || new Date()
+            } : msg
+          );
+        } else {
+          // Add new message from other user
+          const newMessage = { text, firstName, lastName, senderId, timestamp: createdAt || new Date() };
+          
+          // Create notification for new message
+          createNotification({
+            type: 'message',
+            title: `New message from ${firstName} ${lastName}`,
+            message: text.length > 50 ? text.substring(0, 50) + '...' : text,
+            senderId: senderId,
+            isRead: false
+          });
+          
+          return [...messages, newMessage];
+        }
+      });
+    };
+
+    // Create notification function
+    const createNotification = async (notificationData) => {
+      try {
+        await axios.post(`${BASE_URL}/notifications`, notificationData, {
+          withCredentials: true,
+        });
+      } catch (err) {
+        console.error("Error creating notification:", err);
+      }
     };
 
     const handleStatus = ({ userId, isOnline, lastSeen }) => {
@@ -84,10 +125,15 @@ const Message = () => {
         ...prev,
         [userId]: { isOnline, lastSeen },
       }));
+      if (isOnline) {
+        setOnlineSince((prev) => ({ ...prev, [userId]: new Date().toISOString() }));
+      }
     };
 
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
+    // request latest presence for recipient on mount
+    socket.emit("joinChat", { targetuserId });
 
     return () => {
       socket.off("connect", doJoin);
@@ -99,25 +145,30 @@ const Message = () => {
 
   const handleSend = () => {
     if (!newmessage.trim()) return;
+    const messageText = newmessage.trim();
+    setNewmessage(""); // Clear input immediately
+    
     const socket = getSocket(userId);
     socket.emit("sendMessage", {
-      text: newmessage,
+      text: messageText,
       targetuserId,
       firstName: user.firstName,
       lastName: user.lastName,
     });
-    // Optimistic UI update
+    
+    // Optimistic UI update - add temporary message with unique ID
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     setMessages((messages) => [
       ...messages,
       {
-        text: newmessage,
+        text: messageText,
         firstName: user.firstName,
         lastName: user.lastName,
         senderId: userId,
         timestamp: new Date(),
+        tempId: tempId, // Temporary ID to identify this message
       },
     ]);
-    setNewmessage("");
   };
 
   // Scroll neeche jaane ka effect
@@ -176,6 +227,50 @@ const Message = () => {
     });
   };
 
+  // Online since formatting
+  const formatSince = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMin / 60);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin} min ago`;
+    if (diffHr < 24) return `${diffHr} hr ago`;
+    return `${Math.floor(diffHr / 24)} d ago`;
+  };
+
+  // Last seen formatting
+  const formatLastSeen = (dateString) => {
+    if (!dateString) return "Offline";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMin / 60);
+
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin} min ago`;
+    if (diffHr < 24) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    if (date.toDateString() === yesterday.toDateString()) {
+      return `Yesterday ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    }
+
+    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   // Group messages by date
   const groupMessages = (msgs) => {
     if (!msgs || !msgs.length) return [];
@@ -211,11 +306,20 @@ const Message = () => {
   }, [messages]);
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto h-[600px] border rounded-2xl shadow-lg overflow-hidden bg-white dark:bg-zinc-900 m-10">
+    <div className="flex flex-col w-full h-screen lg:h-[calc(100vh-2rem)] lg:max-w-6xl lg:mx-auto lg:border lg:rounded-2xl lg:shadow-lg overflow-hidden bg-white dark:bg-zinc-900 lg:m-4">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b bg-blue-600 text-white">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blue-600 font-bold text-lg">
+      <div className="flex items-center justify-between p-3 sm:p-4 lg:p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white flex-shrink-0">
+        <div className="flex items-center space-x-3 lg:space-x-4 flex-1 min-w-0">
+          {/* Back Button - Mobile Only */}
+          <button
+            onClick={() => navigate(-1)}
+            className="lg:hidden p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
+            title="Go Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          
+          <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-white flex items-center justify-center text-blue-600 font-bold text-lg flex-shrink-0">
             {photoURL ? (
               <img
                 src={photoURL}
@@ -223,7 +327,7 @@ const Message = () => {
                 className="w-full h-full object-cover rounded-full"
               />
             ) : (
-              <span className="text-xl font-bold">
+              <span className="text-xl lg:text-2xl font-bold">
                 {recipientName
                   .split(" ")
                   .map((n) => n[0])
@@ -232,45 +336,67 @@ const Message = () => {
               </span>
             )}
           </div>
-          <div>
-            <h2 className="font-semibold text-lg">{recipientName}</h2>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-semibold text-base sm:text-lg lg:text-xl truncate">{recipientName}</h2>
             <div className="flex items-center space-x-1">
               {userStatus[targetuserId]?.isOnline ? (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                  <span className="text-xs opacity-80">Online</span>
+                  <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-green-400 flex-shrink-0"></span>
+                  <span className="text-xs lg:text-sm opacity-80 truncate">
+                    Online{onlineSince[targetuserId] ? ` • since ${formatSince(onlineSince[targetuserId])}` : ""}
+                  </span>
                 </>
               ) : (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                  <span className="text-xs opacity-80">
-                    Last seen:{" "}
-                    {userStatus[targetuserId]?.lastSeen
-                      ? new Date(
-                          userStatus[targetuserId].lastSeen
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Offline"}
-                  </span>
+                  <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-gray-400 flex-shrink-0"></span>
+                  <span className="text-xs lg:text-sm opacity-80 truncate">Last seen: {formatLastSeen(userStatus[targetuserId]?.lastSeen)}</span>
                 </>
               )}
             </div>
           </div>
         </div>
+        
+        {/* Call Icons */}
+        <div className="flex items-center space-x-2 lg:space-x-3 ml-3">
+          <button
+            onClick={() => {
+              // TODO: Implement voice call functionality
+              console.log("Voice call to", recipientName);
+            }}
+            className="p-2 lg:p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
+            title="Voice Call"
+          >
+            <Phone className="h-5 w-5 lg:h-6 lg:w-6" />
+          </button>
+          <button
+            onClick={() => {
+              // TODO: Implement video call functionality
+              console.log("Video call to", recipientName);
+            }}
+            className="p-2 lg:p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
+            title="Video Call"
+          >
+            <Video className="h-5 w-5 lg:h-6 lg:w-6" />
+          </button>
+        </div>
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50 dark:bg-zinc-800">
+      <div className="flex-1 p-2 sm:p-4 lg:p-6 overflow-y-auto space-y-2 sm:space-y-3 lg:space-y-4 bg-gray-50 dark:bg-zinc-800">
         {groupedMessages.length === 0 ? (
-          <p className="text-center text-gray-500">No messages yet...</p>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl lg:text-8xl mb-4">💬</div>
+              <p className="text-gray-500 text-sm sm:text-base lg:text-lg">No messages yet...</p>
+              <p className="text-gray-400 text-xs sm:text-sm lg:text-base mt-2">Start a conversation!</p>
+            </div>
+          </div>
         ) : (
           groupedMessages.map((item) => {
             if (item.type === "date") {
               return (
-                <div key={item.id} className="flex justify-center my-2">
-                  <div className="bg-gray-200 dark:bg-zinc-700 text-xs text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full">
+                <div key={item.id} className="flex justify-center my-3 lg:my-4">
+                  <div className="bg-gray-200 dark:bg-zinc-700 text-xs lg:text-sm text-gray-600 dark:text-gray-300 px-4 py-2 rounded-full">
                     {formatDate(item.date)}
                   </div>
                 </div>
@@ -278,35 +404,36 @@ const Message = () => {
             }
 
             const msg = item;
+            const isOwnMessage = user.firstName === msg.firstName;
+            const isTempMessage = msg.tempId; // Check if it's a temporary message
             return (
               <div
-                key={msg.id}
-                className={
-                  "chat " +
-                  (user.firstName === msg.firstName ? "chat-end" : "chat-start")
-                }
+                key={msg.tempId || msg.id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2 lg:mb-3`}
               >
                 <div
-                  className={
-                    "chat-bubble " +
-                    (user.firstName === msg.firstName
-                      ? "bg-gray-500 text-white"
-                      : "bg-blue-400 text-white")
-                  }
+                  className={`max-w-[85%] sm:max-w-[75%] lg:max-w-[60%] xl:max-w-[50%] rounded-2xl px-3 py-2 lg:px-4 lg:py-3 ${
+                    isOwnMessage
+                      ? "bg-blue-500 text-white rounded-br-md"
+                      : "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white rounded-bl-md border border-gray-200 dark:border-zinc-600"
+                  } ${isTempMessage ? 'opacity-70' : ''}`}
                 >
-                  {/* Naam */}
-                  <div className="text-sm font-semibold mb-1">
-                    {msg.firstName + " " + msg.lastName}
-                  </div>
+                  {/* Naam - only show for other person's messages */}
+                  {!isOwnMessage && (
+                    <div className="text-xs lg:text-sm font-semibold mb-1 opacity-80">
+                      {msg.firstName + " " + msg.lastName}
+                    </div>
+                  )}
                   {/* Message */}
-                  <div className="text-base break-words">{msg.text}</div>
+                  <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed">{msg.text}</div>
 
                   {/* Time */}
-                  <div className="text-[10px] opacity-70 mt-1 text-right">
+                  <div className={`text-[10px] lg:text-xs opacity-70 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                     {new Date(msg.timestamp).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
+                    {isTempMessage && <span className="ml-1">⏳</span>}
                   </div>
                 </div>
               </div>
@@ -318,17 +445,18 @@ const Message = () => {
       </div>
 
       {/* Input box */}
-      <div className="relative flex items-center p-3 border-t bg-white dark:bg-zinc-900">
+      <div className="relative flex items-center p-2 sm:p-3 lg:p-4 border-t bg-white dark:bg-zinc-900 gap-2 sm:gap-3 flex-shrink-0">
         {/* ✅ Emoji Button */}
         <button
           onClick={() => setShowEmoji(!showEmoji)}
-          className="mr-2 p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700"
+          className="p-2 sm:p-2.5 lg:p-3 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 transition-colors duration-200 flex-shrink-0"
+          title="Emoji"
         >
-          😀
+          <span className="text-sm sm:text-base lg:text-lg">😀</span>
         </button>
 
         {showEmoji && (
-          <div className="absolute bottom-14 left-4 z-10">
+          <div className="absolute bottom-14 sm:bottom-16 lg:bottom-20 left-2 sm:left-4 lg:left-6 z-10">
             <EmojiPicker onEmojiClick={onEmojiClick} />
           </div>
         )}
@@ -339,24 +467,26 @@ const Message = () => {
           onChange={(e) => setNewmessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Type a message..."
-          className="flex-1 p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
+          className="flex-1 p-3 sm:p-4 lg:p-5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white text-sm sm:text-base lg:text-lg min-w-0"
         />
 
         {/* ✅ Mic Button */}
         <button
           onClick={startListening}
-          className={`ml-2 p-2 rounded-full ${
+          className={`p-2 sm:p-2.5 lg:p-3 rounded-full ${
             listening ? "bg-red-500" : "bg-green-500"
-          } text-white`}
+          } text-white transition-colors duration-200 flex-shrink-0`}
+          title={listening ? "Stop Recording" : "Voice Message"}
         >
-          🎤
+          <span className="text-sm sm:text-base lg:text-lg">🎤</span>
         </button>
 
         <button
           onClick={handleSend}
-          className="ml-2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700"
+          className="p-2 sm:p-2.5 lg:p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200 flex-shrink-0"
+          title="Send Message"
         >
-          <Send className="h-5 w-5" />
+          <Send className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
         </button>
       </div>
     </div>

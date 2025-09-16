@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import Navbar from './navbar'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import Footer from './footer'
 import { BASE_URL } from '../utils/constants'
 import { useDispatch, useSelector } from 'react-redux'
@@ -10,7 +10,11 @@ import axios from 'axios'
 const Body = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const userData = useSelector((store) => store.user);
+  
+  // Check if current route is message page
+  const isMessagePage = location.pathname.startsWith('/message/');
 
   const fetchUser = async () => {
     if(userData) return;
@@ -33,9 +37,9 @@ const Body = () => {
   
   return (
     <div className='bg-gradient-to-br from-gray-900 via-black to-gray-800 '>
-      <Navbar/>
+      {!isMessagePage && <Navbar/>}
       <Outlet/>
-      <Footer/>
+      {!isMessagePage && <Footer/>}
     </div>
   )
 }

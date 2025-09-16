@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
 import { useDispatch } from "react-redux";
 import { removefeed } from "../utils/feedSlice";
 
-const FeedCard = ({ user }) => {
+const FeedCard = ({ user, onCardAction }) => {
   const dispatch = useDispatch();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  
   const interestedOrignored = async (status, toUserId) => {
+    if (isProcessing || isHidden) return; // Prevent multiple clicks
+    
+    setIsProcessing(true);
     try {
       await axios.post(
         `${BASE_URL}/request/send/${status}/${toUserId}`,
@@ -16,14 +22,32 @@ const FeedCard = ({ user }) => {
         }
       );
 
-      dispatch(removefeed(toUserId));
+      // Immediately hide the card
+      setIsHidden(true);
+      
+      // Remove from Redux store after a short delay
+      setTimeout(() => {
+        dispatch(removefeed(toUserId));
+        if (onCardAction) {
+          onCardAction();
+        }
+      }, 200);
+      
     } catch (err) {
       console.error(err);
+      setIsProcessing(false); // Reset on error
     }
   };
 
+  // Don't render if hidden
+  if (isHidden) {
+    return null;
+  }
+
   return (
-    <div className="relative w-80 max-w-sm rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-300 hover:scale-105 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
+    <div className={`relative w-80 max-w-sm rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-300 hover:scale-105 bg-gradient-to-br from-gray-800 via-gray-900 to-black ${
+      isProcessing ? 'opacity-50 scale-95' : ''
+    }`}>
       <div className="h-64 w-full overflow-hidden relative">
         <img
           src={user.photoUrl}
@@ -46,15 +70,25 @@ const FeedCard = ({ user }) => {
         <div className="flex gap-3 mt-2">
           <button
             onClick={() => interestedOrignored("ignored", user._id)}
-            className="flex-1 py-2 px-4 bg-red-500 rounded-xl text-white font-semibold hover:bg-red-600 transition duration-300"
+            disabled={isProcessing}
+            className={`flex-1 py-2 px-4 rounded-xl text-white font-semibold transition duration-300 ${
+              isProcessing 
+                ? 'bg-gray-500 cursor-not-allowed' 
+                : 'bg-red-500 hover:bg-red-600'
+            }`}
           >
-            Ignore
+            {isProcessing ? 'Processing...' : 'Ignore'}
           </button>
           <button
             onClick={() => interestedOrignored("interested", user._id)}
-            className="flex-1 py-2 px-4 bg-green-500 rounded-xl text-white font-semibold hover:bg-green-600 transition duration-300"
+            disabled={isProcessing}
+            className={`flex-1 py-2 px-4 rounded-xl text-white font-semibold transition duration-300 ${
+              isProcessing 
+                ? 'bg-gray-500 cursor-not-allowed' 
+                : 'bg-green-500 hover:bg-green-600'
+            }`}
           >
-            Interested
+            {isProcessing ? 'Processing...' : 'Interested'}
           </button>
         </div>
       </div>

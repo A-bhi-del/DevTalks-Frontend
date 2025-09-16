@@ -2,7 +2,7 @@ import React from "react";
 
 const UserCard = ({ user }) => {
   return (
-    <div className="relative w-80 max-w-sm rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-300 hover:scale-105 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
+    <div className="relative w-full max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-300 md:hover:scale-105 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
       
       {/* Profile Image */}
       <div className="h-64 w-full overflow-hidden relative">

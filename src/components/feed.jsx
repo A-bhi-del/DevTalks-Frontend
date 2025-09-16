@@ -26,44 +26,55 @@ const FeedPage = () => {
     getFeed();
   }, []);
 
-  const handleNext = () => {
+  // Adjust currentIndex when feed changes (when a card is removed)
+  useEffect(() => {
+    if (feed && feed.length > 0) {
+      if (currentIndex >= feed.length) {
+        setCurrentIndex(feed.length - 1);
+      }
+    }
+  }, [feed.length]);
+
+  const handleCardAction = () => {
+    // When a card is interested/ignored, move to next card if available
     if (currentIndex < feed.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      // Stay at same index, next card will automatically show
+      // because the current card is removed from the array
+      // No need to change currentIndex as the array will shift
+    } else {
+      // If we're at the last card, go to previous one
+      if (currentIndex > 0) {
+        setCurrentIndex(currentIndex - 1);
+      }
     }
   };
 
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
-
-  return (
-    feed && feed.length > 0 && (
+  // Show empty state if no more cards
+  if (!feed || feed.length === 0) {
+    return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white p-4">
-        
-        {/* Show ek hi card at a time */}
-        <FeedCard user={feed[currentIndex]} />
-        
-
-        <div className="flex gap-4 mt-6">
+        <div className="text-center">
+          <div className="text-8xl mb-6">💔</div>
+          <h2 className="text-3xl font-bold mb-4">No more profiles!</h2>
+          <p className="text-gray-300 text-lg mb-6">You've seen all available profiles.</p>
           <button
-            onClick={handlePrev}
-            disabled={currentIndex === 0}
-            className="px-4 py-2 bg-gray-700 rounded disabled:opacity-50"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-600 rounded-xl text-white font-semibold hover:bg-blue-700 transition duration-300"
           >
-            Prev
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={currentIndex === feed.length - 1}
-            className="px-4 py-2 bg-blue-600 rounded disabled:opacity-50"
-          >
-            Next
+            Refresh to see more
           </button>
         </div>
       </div>
-    )
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white p-4">
+      
+      {/* Show ek hi card at a time */}
+      <FeedCard user={feed[currentIndex]} onCardAction={handleCardAction} />
+      
+    </div>
   );
 };
 
