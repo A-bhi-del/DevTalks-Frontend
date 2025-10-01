@@ -23,7 +23,11 @@ const Connection = () => {
   };
 
   useEffect(() => {
-    fetchConnections();
+    // Only fetch connections if user is logged in
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (user) {
+      fetchConnections();
+    }
   }, []);
 
   if (!connection) return null;
@@ -44,7 +48,6 @@ const Connection = () => {
             key={index}
             className="flex items-center justify-between bg-base-100 shadow-md rounded-xl p-4"
           >
-            {/* Left side: profile image + name */}
             <div className="flex items-center space-x-4">
               <img
                 src={c.photoUrl || "https://via.placeholder.com/40"}
@@ -59,7 +62,6 @@ const Connection = () => {
               </div>
             </div>
 
-            {/* Right side: button */}
             <Link to={"/message/" + c._id}>
               <button className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg">
                 Message

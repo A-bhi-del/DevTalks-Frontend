@@ -3,6 +3,8 @@ import React from 'react'
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { addUser } from '../utils/userSlice';
+import { clearAllConnections } from '../utils/connectionSlice';
+import { clearAllRequests } from '../utils/requestSlice';
 import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../utils/constants';
 
@@ -28,7 +30,12 @@ const Login = () => {
     if (res?.data?.token) {
       try { localStorage.setItem('token', res.data.token); } catch {}
     }
+    // Clear all previous data before adding new user
+    dispatch(clearAllConnections());
+    dispatch(clearAllRequests());
     dispatch(addUser(res.data.data));
+    // Store user data in localStorage for persistence
+    try { localStorage.setItem('user', JSON.stringify(res.data.data)); } catch {}
     return nevigate("/");
     }catch(err){
       setError(err?.response?.data || "Something went wrong");

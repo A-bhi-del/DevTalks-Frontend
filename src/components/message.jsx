@@ -5,7 +5,7 @@ import getSocket, { disconnectSocket } from "../utils/socket";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
-import EmojiPicker from "emoji-picker-react"; // ✅ Emoji picker import
+import EmojiPicker from "emoji-picker-react"; 
 
 const Message = () => {
   const { targetuserId } = useParams();
@@ -530,13 +530,10 @@ const Message = () => {
             );
           })
         )}
-        {/* Scroll ke liye dummy div */}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input box */}
       <div className="relative flex items-center p-2 sm:p-3 lg:p-4 border-t bg-white dark:bg-zinc-900 gap-2 sm:gap-3 flex-shrink-0">
-        {/* ✅ Emoji Button */}
         <button
           onClick={() => setShowEmoji(!showEmoji)}
           className="p-2 sm:p-2.5 lg:p-3 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 transition-colors duration-200 flex-shrink-0"
@@ -560,7 +557,6 @@ const Message = () => {
           className="flex-1 p-3 sm:p-4 lg:p-5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white text-sm sm:text-base lg:text-lg min-w-0"
         />
 
-        {/* ✅ Mic Button */}
         <button
           onClick={startListening}
           className={`p-2 sm:p-2.5 lg:p-3 rounded-full ${

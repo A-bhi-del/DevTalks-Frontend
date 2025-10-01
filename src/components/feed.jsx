@@ -9,6 +9,7 @@ const FeedPage = () => {
   const feed = useSelector((store) => store.feed);
   const dispatch = useDispatch();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   const getFeed = async () => {
     try {
@@ -29,24 +30,22 @@ const FeedPage = () => {
   // Adjust currentIndex when feed changes (when a card is removed)
   useEffect(() => {
     if (feed && feed.length > 0) {
+      // If currentIndex is beyond the array length, adjust it
       if (currentIndex >= feed.length) {
         setCurrentIndex(feed.length - 1);
       }
-    }
-  }, [feed.length]);
-
-  const handleCardAction = () => {
-    // When a card is interested/ignored, move to next card if available
-    if (currentIndex < feed.length - 1) {
-      // Stay at same index, next card will automatically show
-      // because the current card is removed from the array
-      // No need to change currentIndex as the array will shift
-    } else {
-      // If we're at the last card, go to previous one
-      if (currentIndex > 0) {
+      // If we're at the last card and it gets removed, go to previous
+      if (currentIndex >= feed.length && currentIndex > 0) {
         setCurrentIndex(currentIndex - 1);
       }
     }
+  }, [feed.length, currentIndex]);
+
+  const handleCardAction = () => {
+    // When a card is interested/ignored, the card is removed from the array
+    // Force a re-render to show the next user
+    console.log('Card action triggered, current index:', currentIndex, 'feed length:', feed.length);
+    setForceUpdate(prev => prev + 1);
   };
 
   // Show empty state if no more cards
@@ -71,8 +70,11 @@ const FeedPage = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white p-4">
       
-      {/* Show ek hi card at a time */}
-      <FeedCard user={feed[currentIndex]} onCardAction={handleCardAction} />
+      <FeedCard 
+        key={`${feed[currentIndex]?._id}-${currentIndex}-${forceUpdate}`} 
+        user={feed[currentIndex]} 
+        onCardAction={handleCardAction} 
+      />
       
     </div>
   );

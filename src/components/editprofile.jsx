@@ -100,7 +100,6 @@ const EditProfile = () => {
               User Profile
             </h2>
             <form onSubmit={handleSaveChanges} noValidate>
-              {/* First row: First Name + Last Name */}
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <div className="flex-1">
                   <label htmlFor="firstName" className="block mb-1 text-sm font-medium text-gray-200">
@@ -131,7 +130,6 @@ const EditProfile = () => {
                 </div>
               </div>
 
-              {/* Second row: Age + Gender */}
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <div className="flex-1">
                   <label htmlFor="age" className="block mb-1 text-sm font-medium text-gray-200">

@@ -9,10 +9,13 @@ const userSlice = createSlice({
         },
         removeUser: (state, action) => {
             return null;
+        },
+        clearUser: (state, action) => {
+            return null;
         }
     }
 })
 
 // yaha se adduser or reoveuser ko extract kiya 
-export const {addUser, removeUser} = userSlice.actions;
+export const {addUser, removeUser, clearUser} = userSlice.actions;
 export default userSlice.reducer;
