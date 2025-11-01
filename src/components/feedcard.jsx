@@ -14,6 +14,23 @@ const FeedCard = ({ user, onCardAction }) => {
     
     setIsProcessing(true);
     try {
+      // Temporarily disable notification creation until backend is deployed
+      // if (status === "interested") {
+      //   // Create notification for interested user
+      //   await axios.post(
+      //     `${BASE_URL}/notifications/create-interest`,
+      //     {
+      //       toUserId: toUserId,
+      //       title: "Someone is interested in you!",
+      //       message: "Check your notifications to see who's interested"
+      //     },
+      //     {
+      //       withCredentials: true,
+      //     }
+      //   );
+      // }
+
+      // Send the original request
       await axios.post(
         `${BASE_URL}/request/send/${status}/${toUserId}`,
         {},

@@ -5,7 +5,10 @@ import getSocket, { disconnectSocket } from "../utils/socket";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_URL } from "../utils/constants";
-import EmojiPicker from "emoji-picker-react"; 
+import EmojiPicker from "emoji-picker-react";
+import VoiceCall from "./VoiceCall";
+import VideoCall from "./VideoCall";
+import IncomingCall from "./IncomingCall"; 
 
 const Message = () => {
   const { targetuserId } = useParams();
@@ -20,6 +23,10 @@ const Message = () => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [listening, setListening] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showVoiceCall, setShowVoiceCall] = useState(false);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [showIncomingCall, setShowIncomingCall] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState(null);
   const user = useSelector((store) => store.user);
   const userId = user?._id;
 
@@ -64,6 +71,7 @@ const Message = () => {
       console.error("Error fetching messages:", error);
     }
   };
+
 
   useEffect(() => {
     saveMessage(targetuserId);
@@ -131,8 +139,47 @@ const Message = () => {
       }
     };
 
+    // Handle incoming calls
+    const handleIncomingCall = (data) => {
+      console.log('📞 Incoming call received:', data);
+      setIncomingCallData({
+        callerName: data.fromUserName,
+        callerId: data.fromUserId,
+        callType: data.callType
+      });
+      setShowIncomingCall(true);
+    };
+
+    const handleCallAccepted = (data) => {
+      console.log('📞 Call accepted:', data);
+      setShowIncomingCall(false);
+      // Start the call interface
+      if (data.callType === 'voice') {
+        setShowVoiceCall(true);
+      } else if (data.callType === 'video') {
+        setShowVideoCall(true);
+      }
+    };
+
+    const handleCallRejected = (data) => {
+      console.log('📞 Call rejected:', data);
+      setShowIncomingCall(false);
+    };
+
+    const handleCallEnded = (data) => {
+      console.log('📞 Call ended:', data);
+      setShowIncomingCall(false);
+      setShowVoiceCall(false);
+      setShowVideoCall(false);
+    };
+
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
+    socket.on("incoming-call", handleIncomingCall);
+    socket.on("call-accepted", handleCallAccepted);
+    socket.on("call-rejected", handleCallRejected);
+    socket.on("call-ended", handleCallEnded);
+    
     // request latest presence for recipient on mount
     socket.emit("joinChat", { targetuserId });
 
@@ -140,9 +187,74 @@ const Message = () => {
       socket.off("connect", doJoin);
       socket.off("receiveMessage", handleReceive);
       socket.off("updateUserStatus", handleStatus);
+      socket.off("incoming-call", handleIncomingCall);
+      socket.off("call-accepted", handleCallAccepted);
+      socket.off("call-rejected", handleCallRejected);
+      socket.off("call-ended", handleCallEnded);
       // Do not disconnect globally here; component unmount shouldn't kill app-wide socket
     };
   }, [userId, targetuserId, user?.firstName]);
+
+  // Handle incoming call actions
+  const handleAcceptCall = () => {
+    console.log('📞 Accepting incoming call');
+    const socket = getSocket(userId);
+    socket.emit('call-accepted', {
+      callId: incomingCallData?.callId,
+      acceptedBy: userId
+    });
+    setShowIncomingCall(false);
+    
+    // Start the appropriate call interface
+    if (incomingCallData?.callType === 'voice') {
+      setShowVoiceCall(true);
+    } else if (incomingCallData?.callType === 'video') {
+      setShowVideoCall(true);
+    }
+  };
+
+  const handleRejectCall = () => {
+    console.log('📞 Rejecting incoming call');
+    const socket = getSocket(userId);
+    socket.emit('call-rejected', {
+      callId: incomingCallData?.callId,
+      rejectedBy: userId
+    });
+    setShowIncomingCall(false);
+  };
+
+  // Initiate a call
+  const initiateCall = async (callType) => {
+    try {
+      console.log(`📞 Initiating ${callType} call to ${targetuserId}`);
+      
+      // Send call initiation to backend
+      const response = await axios.post(`${BASE_URL}/call/initiate`, {
+        toUserId: targetuserId,
+        callType: callType
+      }, {
+        withCredentials: true
+      });
+
+      console.log('📞 Call initiated successfully:', response.data);
+      
+      // Start the call interface immediately
+      if (callType === 'voice') {
+        setShowVoiceCall(true);
+      } else if (callType === 'video') {
+        setShowVideoCall(true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error initiating call:', error);
+      // Still show call interface for testing
+      if (callType === 'voice') {
+        setShowVoiceCall(true);
+      } else if (callType === 'video') {
+        setShowVideoCall(true);
+      }
+    }
+  };
 
   const handleSend = () => {
     if (!newmessage.trim()) return;
@@ -327,6 +439,45 @@ const Message = () => {
 
   return (
     <>
+      {/* Incoming Call Modal */}
+      {console.log('📞 IncomingCall render - isOpen:', showIncomingCall)}
+      <IncomingCall
+        isOpen={showIncomingCall}
+        onClose={() => {
+          console.log('📞 IncomingCall onClose called');
+          setShowIncomingCall(false);
+        }}
+        callerName={incomingCallData?.callerName || 'Unknown Caller'}
+        callerId={incomingCallData?.callerId}
+        callType={incomingCallData?.callType || 'voice'}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
+      />
+
+      {/* Voice Call Modal */}
+      {console.log('📞 VoiceCall render - isOpen:', showVoiceCall)}
+      <VoiceCall
+        isOpen={showVoiceCall}
+        onClose={() => {
+          console.log('📞 VoiceCall onClose called');
+          setShowVoiceCall(false);
+        }}
+        recipientName={recipientName}
+        recipientId={targetuserId}
+      />
+
+      {/* Video Call Modal */}
+      {console.log('📹 VideoCall render - isOpen:', showVideoCall)}
+      <VideoCall
+        isOpen={showVideoCall}
+        onClose={() => {
+          console.log('📹 VideoCall onClose called');
+          setShowVideoCall(false);
+        }}
+        recipientName={recipientName}
+        recipientId={targetuserId}
+      />
+
       {/* Photo Modal */}
       {showPhotoModal && (
         <div 
@@ -446,12 +597,22 @@ const Message = () => {
           </div>
         </div>
         
-        {/* Call Icons */}
+        {/* Action Buttons */}
         <div className="flex items-center space-x-2 lg:space-x-3 ml-3">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="px-3 py-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center text-sm font-medium text-white"
+            title="Go Back"
+          >
+            ← Back
+          </button>
+          
+          {/* Call Icons */}
           <button
             onClick={() => {
-              // TODO: Implement voice call functionality
-              console.log("Voice call to", recipientName);
+              console.log('📞 Voice call button clicked');
+              initiateCall('voice');
             }}
             className="p-2 lg:p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
             title="Voice Call"
@@ -460,8 +621,8 @@ const Message = () => {
           </button>
           <button
             onClick={() => {
-              // TODO: Implement video call functionality
-              console.log("Video call to", recipientName);
+              console.log('📹 Video call button clicked');
+              initiateCall('video');
             }}
             className="p-2 lg:p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
             title="Video Call"

@@ -33,6 +33,8 @@ const Navbar = () => {
       setUnreadCount(response.data.unreadCount || 0);
     } catch (err) {
       console.error("Error fetching notifications:", err);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
@@ -60,12 +62,37 @@ const Navbar = () => {
     }
   };
 
+  // Accept interest notification
+  const acceptInterest = async (notificationId) => {
+    try {
+      await axios.post(`${BASE_URL}/notifications/${notificationId}/accept`, {}, {
+        withCredentials: true,
+      });
+      fetchNotifications(); // Refresh notifications
+    } catch (err) {
+      console.error("Error accepting interest:", err);
+    }
+  };
+
+  // Reject interest notification
+  const rejectInterest = async (notificationId) => {
+    try {
+      await axios.post(`${BASE_URL}/notifications/${notificationId}/reject`, {}, {
+        withCredentials: true,
+      });
+      fetchNotifications(); // Refresh notifications
+    } catch (err) {
+      console.error("Error rejecting interest:", err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      fetchNotifications();
+      // Temporarily disable notifications until backend is deployed
+      // fetchNotifications();
       // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
+      // const interval = setInterval(fetchNotifications, 30000);
+      // return () => clearInterval(interval);
     }
   }, [user]);
 
@@ -163,17 +190,11 @@ const Navbar = () => {
                   notifications.map((notification) => (
                     <li key={notification._id}>
                       <div 
-                        className={`flex flex-col p-2 cursor-pointer hover:bg-gray-100 ${
+                        className={`flex flex-col p-3 hover:bg-gray-100 ${
                           !notification.isRead ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                         }`}
-                        onClick={() => {
-                          markAsRead(notification._id);
-                          if (notification.type === 'message') {
-                            nevigate(`/message/${notification.senderId}`);
-                          }
-                        }}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                           <span className="font-semibold text-sm">
                             {notification.title}
                           </span>
@@ -181,12 +202,40 @@ const Navbar = () => {
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                           )}
                         </div>
-                        <span className="text-xs text-gray-600 mt-1">
+                        <span className="text-xs text-gray-600 mb-2">
                           {notification.message}
                         </span>
-                        <span className="text-xs text-gray-400 mt-1">
+                        <span className="text-xs text-gray-400 mb-2">
                           {new Date(notification.createdAt).toLocaleString()}
                         </span>
+                        
+                        {/* Action buttons for interest notifications */}
+                        {notification.type === 'interest' && !notification.isRead && (
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => acceptInterest(notification._id)}
+                              className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => rejectInterest(notification._id)}
+                              className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Mark as read button for other notifications */}
+                        {notification.type !== 'interest' && !notification.isRead && (
+                          <button
+                            onClick={() => markAsRead(notification._id)}
+                            className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors mt-2"
+                          >
+                            Mark as Read
+                          </button>
+                        )}
                       </div>
                     </li>
                   ))

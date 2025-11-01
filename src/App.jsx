@@ -17,13 +17,24 @@ import { addUser } from "./utils/userSlice";
 function AppContent() {
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    // Initialize user from localStorage on app start
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    if (user) {
-      dispatch(addUser(user));
-    }
-  }, [dispatch]);
+        useEffect(() => {
+          // Initialize user from localStorage on app start
+          const user = JSON.parse(localStorage.getItem('user') || 'null');
+          console.log("App.jsx - localStorage user:", user);
+          console.log("App.jsx - Current cookies:", document.cookie);
+          
+          if (user && user._id) {
+            console.log("✅ App.jsx - Valid user found, dispatching to Redux:", user);
+            dispatch(addUser(user));
+          } else {
+            console.log("❌ App.jsx - No valid user in localStorage");
+            console.log("🔄 User needs to login");
+            // Clear any existing cookies
+            document.cookie.split(";").forEach(function(c) { 
+              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+          }
+        }, [dispatch]);
 
   return (
     <BrowserRouter basename="/">

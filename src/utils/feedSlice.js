@@ -5,6 +5,10 @@ const feedSlice = createSlice({
     initialState: [],  // this is a feed show it should be intialize with an array
     reducers:{
         addfeed: (state, action) => {
+            console.log("=== FEED SLICE - addfeed action ===");
+            console.log("Action payload:", action.payload);
+            console.log("Current state before update:", state);
+            console.log("New state will be:", action.payload);
             return action.payload;
         },
         // remeove ka use state ko filter krke check krke krte hai... 
