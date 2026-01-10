@@ -35,16 +35,14 @@ const SignUpPage = () => {
         }
       );
       console.log(res.data);
-      if (res?.data?.token) {
-        try { localStorage.setItem('token', res.data.token); } catch {}
-      }
+      
       // Clear all previous data before adding new user
       dispatch(clearAllConnections());
       dispatch(clearAllRequests());
       dispatch(addUser(res.data.data));
       // Store user data in localStorage for persistence
       try { localStorage.setItem('user', JSON.stringify(res.data.data)); } catch {}
-      return navigate("/");
+      return navigate("/app");
     } catch (err) {
       console.error(err);
     }

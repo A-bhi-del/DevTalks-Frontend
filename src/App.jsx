@@ -12,6 +12,8 @@ import Connection from "./components/connection";
 import Request from "./components/request";
 import Updates from "./components/updates..jsx";
 import Message from "./components/message";
+import WhatsAppChat from "./components/WhatsAppChat";
+import LandingPage from "./components/LandingPage";
 import { addUser } from "./utils/userSlice";
 
 function AppContent() {
@@ -39,16 +41,24 @@ function AppContent() {
   return (
     <BrowserRouter basename="/">
       <Routes>
-        <Route path="/" element={<Body />}>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/" element={<Feed/>}/>
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/Connection" element={<Connection />} />
-          <Route path="/Request" element={<Request />} />
-          <Route path="/update" element={<Updates />} />
-          <Route path="/message/:targetuserId" element={<Message />} />
+        {/* Landing Page - Default Route */}
+        <Route path="/" element={<LandingPage />} />
+        
+        {/* App Routes with Body Layout */}
+        <Route path="/app" element={<Body />}>
+          <Route path="/app" element={<Feed/>}/>
+          <Route path="/app/profile" element={<Profile />} />
+          <Route path="/app/Connection" element={<Connection />} />
+          <Route path="/app/Request" element={<Request />} />
+          <Route path="/app/update" element={<Updates />} />
+          <Route path="/app/message/:targetuserId" element={<WhatsAppChat />} />
+          <Route path="/app/chats" element={<WhatsAppChat />} />
+          <Route path="/app/chats/:targetuserId" element={<WhatsAppChat />} />
         </Route>
+        
+        {/* Auth Routes - Standalone */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
       </Routes>
     </BrowserRouter>
   );

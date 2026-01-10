@@ -55,12 +55,6 @@ const Login = () => {
       dispatch(clearAllRequests());
       dispatch(addUser(null)); // Clear first
       
-      // Save JWT token if provided for socket auth
-      if (res?.data?.token) {
-        console.log("🔑 Saving JWT token");
-        try { localStorage.setItem('token', res.data.token); } catch {}
-      }
-      
       // Store user data in localStorage for persistence
       console.log("💾 Saving user data to localStorage");
       try { 
@@ -74,8 +68,8 @@ const Login = () => {
       console.log("📦 Adding user to Redux store");
       dispatch(addUser(res.data.data));
       
-      console.log("✅ User data saved, navigating to home");
-      return nevigate("/");
+      console.log("✅ User data saved, navigating to app");
+      return nevigate("/app");
     }catch(err){
       console.error("❌ Login failed:", err);
       console.error("🔍 Error status:", err.response?.status);

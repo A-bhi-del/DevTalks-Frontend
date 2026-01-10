@@ -121,13 +121,13 @@ const Navbar = () => {
             className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow"
           >
             <li>
-              <Link to="/Connection">Friends</Link>
+              <Link to="/app/chats">Chats</Link>
             </li>
             <li>
-              <Link to="/Request">Requests</Link>
+              <Link to="/app/Request">Requests</Link>
             </li>
             <li>
-              <Link to="/update">Updates</Link>
+              <Link to="/app/update">Updates</Link>
             </li>
             {/* <li><a>About</a></li> */}
           </ul>
@@ -135,7 +135,7 @@ const Navbar = () => {
       </div>
 
       <div className="navbar-center">
-        <Link className="btn btn-ghost text-xl" to={user ? "/" : "/login"}>
+        <Link className="btn btn-ghost text-xl" to={user ? "/app" : "/login"}>
           Dev.Talks
         </Link>
       </div>
@@ -268,7 +268,7 @@ const Navbar = () => {
             className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
           >
             <li>
-              <Link to="/profile">Profile</Link>
+              <Link to="/app/profile">Profile</Link>
             </li>
             <li>
               <a>Settings</a>

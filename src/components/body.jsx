@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import Navbar from './navbar'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import Footer from './footer'
 import { BASE_URL } from '../utils/constants'
 import { useDispatch, useSelector } from 'react-redux'
 import { addUser } from '../utils/userSlice'
@@ -127,7 +126,6 @@ const Body = () => {
     <div className='bg-gradient-to-br from-gray-900 via-black to-gray-800 '>
       {!isMessagePage && <Navbar/>}
       <Outlet/>
-      {!isMessagePage && <Footer/>}
     </div>
   )
 }

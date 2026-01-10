@@ -62,8 +62,8 @@ const Connection = () => {
               </div>
             </div>
 
-            <Link to={"/message/" + c._id}>
-              <button className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg">
+            <Link to={"/app/chats/" + c._id}>
+              <button className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors">
                 Message
               </button>
             </Link>
