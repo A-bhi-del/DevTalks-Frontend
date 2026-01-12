@@ -248,6 +248,15 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         )
       );
     };
+    const handleDelivered = ({ messageId }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, status: "delivered" }
+            : msg
+        )
+      );
+    };
 
 
     socket.on("receiveMessage", handleReceive);
@@ -257,6 +266,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     socket.on("call-rejected", handleCallRejected);
     socket.on("call-ended", handleCallEnded);
     socket.on("messages-read", handleMessagesRead);
+    socket.on("message-delivered", handleDelivered);
 
     
     // request latest presence for recipient on mount
@@ -294,6 +304,8 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       socket.off("call-accepted", handleCallAccepted);
       socket.off("call-rejected", handleCallRejected);
       socket.off("call-ended", handleCallEnded);
+      socket.off("message-delivered", handleDelivered);
+      socket.off("messages-read", handleMessagesRead);
       if (presenceTimer) clearTimeout(presenceTimer);
       if (periodicPresenceCheck) clearInterval(periodicPresenceCheck);
       // Do not disconnect globally here; component unmount shouldn't kill app-wide socket
@@ -871,15 +883,11 @@ useEffect(() => {
                       <span className="ml-2 text-blue-200">✓</span>
                     )} */}
                     {isOwnMessage && !isTempMessage && (
-                      <span
-                        className={`ml-2 text-xs ${
-                          msg.status === "read"
-                            ? "text-green-300"
-                            : "text-gray-300"
-                        }`}
-                      >
-                        {msg.status === "read" ? "✓✓" : "✓"}
-                      </span>
+                        <span className="ml-2 text-xs">
+                          {msg.status === "sent" && <span className="text-gray-300">✓</span>}
+                          {msg.status === "delivered" && <span className="text-gray-300">✓✓</span>}
+                          {msg.status === "read" && <span className="text-green-400">✓✓</span>}
+                        </span>
                     )}
                   </div>
                 </div>
