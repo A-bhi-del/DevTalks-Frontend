@@ -97,9 +97,16 @@ const Navbar = () => {
   }, [user]);
 
   return (
-    <div className="navbar bg-base-100 shadow-sm">
+   <div className="sticky top-4 z-50 flex justify-center">
+     <div className="navbar 
+      w-full max-w-6xl
+      px-4
+      rounded-2xl
+      bg-blue-500/10 backdrop-blur-lg
+      border border-blue-300/20
+      shadow-md shadow-blue-200/20">
       <div className="navbar-start">
-        <div className="dropdown">
+        <div className="dropdown text-blue-500">
           <div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -135,13 +142,13 @@ const Navbar = () => {
       </div>
 
       <div className="navbar-center">
-        <Link className="btn btn-ghost text-xl" to={user ? "/app" : "/login"}>
+        <Link className="btn btn-ghost text-xl text-blue-500" to={user ? "/app" : "/login"}>
           Dev.Talks
         </Link>
       </div>
 
 
-        <div className="navbar-end gap-2">
+        <div className="navbar-end gap-2 text-blue-500">
           {/* Notifications Dropdown */}
           <div className="dropdown dropdown-end">
             <button 
@@ -280,6 +287,7 @@ const Navbar = () => {
         </div>
       </div>
     </div>
+   </div>
   );
 };
 

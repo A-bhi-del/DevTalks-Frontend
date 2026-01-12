@@ -19,55 +19,26 @@ const FeedPage = () => {
       const localUser = JSON.parse(localStorage.getItem('user') || 'null');
       const currentUser = user || localUser;
       
-      console.log("=== FEED DEBUG START ===");
-      console.log("User login status:", currentUser ? "Logged in" : "Not logged in");
-      console.log("User data from Redux:", user);
-      console.log("User data from localStorage:", localUser);
-      console.log("Current user:", currentUser);
-      console.log("Current feed:", feed);
-      console.log("Feed length:", feed?.length);
-      
       if (!currentUser || !currentUser._id) {
-        console.log("❌ User not logged in, cannot fetch feed");
         return;
       }
       
       if (feed && feed.length > 0) {
-        console.log("✅ Feed already loaded, skipping...");
         return;
       }
       
-      console.log("🌐 Making API call to:", BASE_URL + "/user/feed");
-      console.log("🔑 User ID:", currentUser._id);
-      console.log("👤 User name:", currentUser.firstName, currentUser.lastName);
       
       const res = await axios.get(BASE_URL + "/user/feed", {
         withCredentials: true,
       });
-      
-      console.log("📡 Backend response:", res.data);
-      console.log("👥 Users array:", res.data.users);
-      console.log("🔢 Users count:", res.data.users?.length);
-      console.log("📊 Total users in DB:", res.data.totalUsers);
-      console.log("🔒 Hidden connections:", res.data.totalHidden);
-      console.log("📄 Page:", res.data.page);
-      console.log("➡️ Has more:", res.data.hasMore);
-      
-      if (!res.data.users || res.data.users.length === 0) {
-        console.log("⚠️ No users found in response");
-        console.log("🔍 Response structure:", Object.keys(res.data));
-      }
-      
-      console.log("=== FEED DEBUG END ===");
-      
+            
       // Backend returns {users: [...], hasMore: true, page: 1, totalHidden: 5}
       // We need to dispatch only the users array
       console.log("📤 Dispatching users to Redux:", res.data.users);
       dispatch(addfeed(res.data.users || []));
-      console.log("✅ Feed dispatched successfully");
     } catch (err) {
-      console.error("❌ Error fetching feed:", err);
-      console.error("🔍 Error details:", {
+      console.error("Error fetching feed:", err);
+      console.error("Error details:", {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
@@ -75,34 +46,20 @@ const FeedPage = () => {
       });
       
       if (err.response?.status === 401) {
-        console.log("🔐 Authentication error - user not logged in");
-        console.log("⚠️ Authentication failed - session might have expired");
-        // Don't redirect immediately - let body.jsx handle it
-        // Or clear feed and let user see empty state
         dispatch(addfeed([]));
-        // body.jsx will handle redirect if needed
       } else if (err.response?.status === 500) {
-        console.log("🔥 Server error - check backend logs");
+        console.log("Server error - check backend logs");
       }
     }
   };
 
   useEffect(() => {
-    console.log("=== FEED COMPONENT MOUNTED ===");
-    console.log("User from Redux:", user);
-    console.log("Feed from Redux:", feed);
-    
     // On page refresh, Redux state might be cleared, so check localStorage first
-    const localUser = JSON.parse(localStorage.getItem('user') || 'null');
-    console.log("💾 User from localStorage:", localUser);
-    
+    const localUser = JSON.parse(localStorage.getItem('user') || 'null');    
     // Get current user (either from Redux or localStorage)
     const currentUser = user || localUser;
-    
     // Check if user is properly authenticated
     if (!currentUser || !currentUser._id) {
-      console.log("❌ No user data found in Redux or localStorage");
-      console.log("⚠️ Waiting for body.jsx to restore user or redirect...");
       // Don't redirect immediately - body.jsx will handle it
       // This prevents race conditions on page refresh
       return;
@@ -111,8 +68,6 @@ const FeedPage = () => {
     // If we have user in localStorage but not in Redux, it will be restored by body.jsx
     // Just wait a bit for the restoration
     if (!user && localUser) {
-      console.log("⚠️ User in localStorage but not in Redux yet");
-      console.log("⚠️ Waiting for body.jsx to restore user to Redux...");
       // Wait a bit for body.jsx to restore user
       const timeout = setTimeout(() => {
         if (!user) {
@@ -123,11 +78,7 @@ const FeedPage = () => {
       }, 500);
       return () => clearTimeout(timeout);
     }
-    
-    console.log("✅ User authenticated:", currentUser.firstName, currentUser.lastName);
-    console.log("About to call getFeed()");
     getFeed();
-    console.log("getFeed() called");
   }, [user, feed]); // Add dependencies
 
   // Adjust currentIndex when feed changes (when a card is removed)

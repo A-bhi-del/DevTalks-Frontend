@@ -254,7 +254,7 @@ const LandingPage = () => {
               <span className="text-xl font-bold text-white">DevTalks</span>
             </div>
             <div className="text-gray-400 text-center md:text-right">
-              <p>&copy; 2024 DevTalks. Made with ❤️ for developers.</p>
+              <p>&copy; 2025 DevTalks. Made with ❤️ for developers.</p>
             </div>
           </div>
         </div>

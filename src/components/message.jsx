@@ -139,44 +139,68 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     if (!userId) return;
     const socket = getSocket(userId);
 
-    const doJoin = () => socket.emit("joinChat", { targetuserId });
+    // const doJoin = () => socket.emit("joinChat", { targetuserId });
+    const doJoin = () => {
+      socket.emit("joinChat", { targetuserId }, (res) => {
+        if (res?.status === "joined") {
+          console.log("✅ Joined chat room:", res.roomId);
+        } else {
+          console.error("❌ Failed to join room:", res?.message);
+        }
+      });
+    };
+
     if (socket.connected) {
       doJoin();
     } else {
       socket.once("connect", doJoin);
     }
 
-    const handleReceive = ({ text, firstName, lastName, senderId, createdAt }) => {
-      setMessages((messages) => {
-        // Check if this message is from current user (optimistic update)
-        if (senderId === userId) {
-          // Replace temporary message with real message
-          return messages.map(msg => 
-            msg.tempId ? {
-              ...msg,
-              tempId: undefined, // Remove temp ID
-              timestamp: createdAt || new Date()
-            } : msg
-          );
-        } else {
-          // Add new message from other user
-          const newMessage = { text, firstName, lastName, senderId, timestamp: createdAt || new Date() };
+    // const handleReceive = ({ text, firstName, lastName, senderId, createdAt }) => {
+    //   setMessages((messages) => {
+    //     // Check if this message is from current user (optimistic update)
+    //     if (senderId === userId) {
+    //       // Replace temporary message with real message
+    //       return messages.map(msg => 
+    //         msg.tempId ? {
+    //           ...msg,
+    //           tempId: undefined, // Remove temp ID
+    //           timestamp: createdAt || new Date()
+    //         } : msg
+    //       );
+    //     } else {
+    //       // Add new message from other user
+    //       const newMessage = { text, firstName, lastName, senderId, timestamp: createdAt || new Date() };
           
-          // Create notification for new message
-          createNotification({
-            type: 'message',
-            title: `New message from ${firstName} ${lastName}`,
-            message: text.length > 50 ? text.substring(0, 50) + '...' : text,
-            senderId: senderId,
-            isRead: false
-          });
+    //       // Create notification for new message
+    //       createNotification({
+    //         type: 'message',
+    //         title: `New message from ${firstName} ${lastName}`,
+    //         message: text.length > 50 ? text.substring(0, 50) + '...' : text,
+    //         senderId: senderId,
+    //         isRead: false
+    //       });
           
-          return [...messages, newMessage];
-        }
-      });
-    };
+    //       return [...messages, newMessage];
+    //     }
+    //   });
+    // };
 
     // Create notification function
+    const handleReceive = ({ _id, text, firstName, lastName, senderId, createdAt }) => {
+  setMessages((prev) => [
+    ...prev,
+    {
+      _id,
+      text,
+      firstName,
+      lastName,
+      senderId,
+      timestamp: createdAt || new Date(),
+    },
+  ]);
+};
+
     const createNotification = async (notificationData) => {
       try {
         await axios.post(`${BASE_URL}/notifications`, notificationData, {
@@ -239,7 +263,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     socket.on("call-ended", handleCallEnded);
     
     // request latest presence for recipient on mount
-    socket.emit("joinChat", { targetuserId });
+    // socket.emit("joinChat", { targetuserId });
     
     // Request presence data for the target user
     const requestPresence = () => {
@@ -278,6 +302,32 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       // Do not disconnect globally here; component unmount shouldn't kill app-wide socket
     };
   }, [userId, targetuserId, user?.firstName]);
+
+  // 🔁 Reconnect hone par room dobara join karne ke liye
+useEffect(() => {
+  if (!userId) return;
+
+  const socket = getSocket(userId);
+
+  const handleReconnect = () => {
+    console.log("🔄 Socket reconnected, rejoining chat room");
+
+    socket.emit("joinChat", { targetuserId }, (res) => {
+      if (res?.status === "joined") {
+        console.log("✅ Rejoined room after reconnect:", res.roomId);
+      } else {
+        console.error("❌ Failed to rejoin room:", res?.message);
+      }
+    });
+  };
+
+  socket.on("reconnect", handleReconnect);
+
+  return () => {
+    socket.off("reconnect", handleReconnect);
+  };
+}, [userId, targetuserId]);
+
 
   // Handle incoming call actions
   const handleAcceptCall = () => {
@@ -340,35 +390,93 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     }
   };
 
-  const handleSend = () => {
-    if (!newmessage.trim()) return;
-    const messageText = newmessage.trim();
-    setNewmessage(""); // Clear input immediately
+  // const handleSend = () => {
+  //   if (!newmessage.trim()) return;
+  //   const messageText = newmessage.trim();
+  //   setNewmessage(""); // Clear input immediately
     
-    const socket = getSocket(userId);
-    socket.emit("sendMessage", {
-      text: messageText,
-      targetuserId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    });
+  //   const socket = getSocket(userId);
+  //   socket.emit("sendMessage", {
+  //     text: messageText,
+  //     targetuserId,
+  //     firstName: user.firstName,
+  //     lastName: user.lastName,
+  //   });
     
-    // Optimistic UI update - add temporary message with unique ID
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    setMessages((messages) => [
-      ...messages,
-      {
-        text: messageText,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        senderId: userId,
-        timestamp: new Date(),
-        tempId: tempId, // Temporary ID to identify this message
-      },
-    ]);
-  };
+  //   // Optimistic UI update - add temporary message with unique ID
+  //   const tempId = `temp-${Date.now()}-${Math.random()}`;
+  //   setMessages((messages) => [
+  //     ...messages,
+  //     {
+  //       text: messageText,
+  //       firstName: user.firstName,
+  //       lastName: user.lastName,
+  //       senderId: userId,
+  //       timestamp: new Date(),
+  //       tempId: tempId, // Temporary ID to identify this message
+  //     },
+  //   ]);
+  // };
 
   // Scroll neeche jaane ka effect
+      const handleSend = () => {
+      if (!newmessage.trim()) return;
+
+      const messageText = newmessage.trim();
+      setNewmessage("");
+
+      const socket = getSocket(userId);
+
+      // Temporary ID for optimistic UI
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+
+      // Optimistic UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: messageText,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          senderId: userId,
+          timestamp: new Date(),
+          tempId,
+        },
+      ]);
+
+      socket.emit(
+        "sendMessage",
+        {
+          text: messageText,
+          targetuserId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        (res) => {
+          if (res?.status === "sent") {
+            // ✅ Confirm message
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.tempId === tempId
+                  ? {
+                      ...msg,
+                      tempId: undefined,
+                      timestamp: res.createdAt,
+                    }
+                  : msg
+              )
+            );
+          } else {
+            // ❌ Failed → rollback
+            console.error("Message failed:", res?.message);
+
+            setMessages((prev) =>
+              prev.filter((msg) => msg.tempId !== tempId)
+            );
+          }
+        }
+      );
+    };
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -633,7 +741,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
       <div className="flex flex-col w-full h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700/50 bg-gradient-to-r from-purple-600 to-purple-700 text-white flex-shrink-0 shadow-lg">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700/50 bg-gradient-to-r from-blue-600 to-blue-700 text-white flex-shrink-0 shadow-lg">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Back Button - Mobile Only */}
           <button
@@ -645,7 +753,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           </button>
           
           <div 
-            className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center font-bold text-lg flex-shrink-0 cursor-pointer hover:shadow-lg hover:shadow-purple-500/25 transition-all duration-300 overflow-hidden ring-2 ring-gray-600/30 hover:ring-purple-500/50"
+            className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center font-bold text-lg flex-shrink-0 cursor-pointer hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 overflow-hidden ring-2 ring-gray-600/30 hover:ring-blue-500/50"
             onClick={() => setShowPhotoModal(true)}
             title="Click to view profile photo"
           >
@@ -735,10 +843,10 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         {groupedMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-gray-700/50">
+              <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 flex items-center justify-center border border-gray-700/50">
                 <MessageCircle className="w-12 h-12 lg:w-16 lg:h-16 text-gray-400" />
               </div>
-              <h3 className="text-xl lg:text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h3 className="text-xl lg:text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
                 Start the conversation
               </h3>
               <p className="text-gray-400 text-base lg:text-lg leading-relaxed">

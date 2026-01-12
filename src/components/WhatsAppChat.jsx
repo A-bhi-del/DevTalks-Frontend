@@ -135,10 +135,10 @@ const WhatsAppChat = () => {
     return (
       <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
         <div className="text-center max-w-md">
-          <div className="w-32 h-32 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-gray-700/50">
+          <div className="w-32 h-32 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 flex items-center justify-center border border-gray-700/50">
             <Users className="w-16 h-16 text-gray-400" />
           </div>
-          <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
             No Connections Yet
           </h3>
           <p className="text-gray-400 text-lg leading-relaxed mb-6">
@@ -146,7 +146,7 @@ const WhatsAppChat = () => {
           </p>
           <button
             onClick={() => navigate('/app')}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:scale-105"
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:scale-105"
           >
             Find People
           </button>
@@ -161,7 +161,7 @@ const WhatsAppChat = () => {
       <div className="hidden lg:flex flex-col w-20 border-r border-gray-700/50 bg-gradient-to-b from-slate-800 to-slate-900 items-center py-6 shadow-xl">
         {/* Logo/Brand */}
         <div className="mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
             <MessageCircle className="w-7 h-7 text-white" />
           </div>
         </div>
@@ -191,7 +191,7 @@ const WhatsAppChat = () => {
             onClick={() => setActiveView('friends')}
             className={`group relative p-4 rounded-2xl transition-all duration-300 ${
               activeView === 'friends' 
-                ? 'bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/25' 
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25' 
                 : 'hover:bg-gray-700/50 hover:shadow-lg'
             }`}
             title="Friends"
@@ -232,7 +232,7 @@ const WhatsAppChat = () => {
       {/* Left Panel - Chat List / Friends List */}
       <div className="w-full md:w-1/3 lg:w-96 flex flex-col border-r border-gray-700/50 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 flex items-center justify-between border-b border-gray-700/50 shadow-lg">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 flex items-center justify-between border-b border-gray-700/50 shadow-lg">
           <div className="flex items-center space-x-4">
             <button className="lg:hidden p-2.5 rounded-xl hover:bg-gray-700/50 transition-colors">
               <Menu className="w-5 h-5 text-gray-300" />
@@ -266,26 +266,26 @@ const WhatsAppChat = () => {
             onClick={() => setActiveView('chats')}
             className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
               activeView === 'chats'
-                ? 'text-white bg-gradient-to-r from-blue-500/20 to-purple-500/20'
+                ? 'text-white bg-gradient-to-r from-blue-500/20 to-blue-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
             }`}
           >
             Messages
             {activeView === 'chats' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"></div>
             )}
           </button>
           <button
             onClick={() => setActiveView('friends')}
             className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
               activeView === 'friends'
-                ? 'text-white bg-gradient-to-r from-purple-500/20 to-pink-500/20'
+                ? 'text-white bg-gradient-to-r from-blue-500/20 to-pink-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
             }`}
           >
             Friends
             {activeView === 'friends' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-pink-500"></div>
             )}
           </button>
         </div>
@@ -299,7 +299,7 @@ const WhatsAppChat = () => {
               placeholder={activeView === 'chats' ? "Search conversations..." : "Search friends..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-700/50 text-white placeholder-gray-400 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:bg-gray-700/70 transition-all duration-300 border border-gray-600/30"
+              className="w-full bg-gray-700/50 text-white placeholder-gray-400 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-gray-700/70 transition-all duration-300 border border-gray-600/30"
             />
           </div>
         </div>
@@ -322,7 +322,7 @@ const WhatsAppChat = () => {
                     <div className="flex items-center space-x-4">
                       {/* Profile Picture */}
                       <div className="relative flex-shrink-0">
-                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-600 to-gray-700 ring-2 ring-gray-600/30 group-hover:ring-purple-500/30 transition-all duration-300">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-600 to-gray-700 ring-2 ring-gray-600/30 group-hover:ring-blue-500/30 transition-all duration-300">
                           {connection.photoUrl && connection.photoUrl !== "https://via.placeholder.com/56" ? (
                             <img
                               src={connection.photoUrl}
@@ -340,7 +340,7 @@ const WhatsAppChat = () => {
 
                       {/* Friend Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold truncate text-lg group-hover:text-purple-300 transition-colors">
+                        <h3 className="text-white font-semibold truncate text-lg group-hover:text-blue-300 transition-colors">
                           {connection.firstName} {connection.lastName}
                         </h3>
                         <p className="text-sm text-gray-400 truncate mt-1">
@@ -355,7 +355,7 @@ const WhatsAppChat = () => {
                           handleChatSelect(connection._id);
                           setActiveView('chats');
                         }}
-                        className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-sm rounded-xl transition-all duration-300 flex-shrink-0 shadow-lg hover:shadow-purple-500/25 transform hover:scale-105 flex items-center space-x-2"
+                        className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm rounded-xl transition-all duration-300 flex-shrink-0 shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 flex items-center space-x-2"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span className="hidden sm:inline">Chat</span>
@@ -379,20 +379,20 @@ const WhatsAppChat = () => {
                     onClick={() => handleChatSelect(connection._id)}
                     className={`group px-4 py-4 cursor-pointer transition-all duration-300 rounded-2xl mx-2 border relative overflow-hidden ${
                       isSelected 
-                        ? "bg-gradient-to-r from-purple-500/20 to-purple-600/20 border-purple-500/30 shadow-lg shadow-purple-500/10" 
+                        ? "bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-blue-500/30 shadow-lg shadow-blue-500/10" 
                         : "hover:bg-gradient-to-r hover:from-gray-700/30 hover:to-gray-600/20 border-transparent hover:border-gray-600/30"
                     }`}
                   >
                     {/* Selection indicator */}
                     {isSelected && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-600 rounded-r-full"></div>
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600 rounded-r-full"></div>
                     )}
                     
                     <div className="flex items-center space-x-4">
                       {/* Profile Picture */}
                       <div className="relative flex-shrink-0">
                         <div className={`w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-600 to-gray-700 ring-2 transition-all duration-300 ${
-                          isSelected ? "ring-purple-500/50" : "ring-gray-600/30 group-hover:ring-purple-500/30"
+                          isSelected ? "ring-blue-500/50" : "ring-gray-600/30 group-hover:ring-blue-500/30"
                         }`}>
                           {connection.photoUrl && connection.photoUrl !== "https://via.placeholder.com/56" ? (
                             <img
@@ -413,14 +413,14 @@ const WhatsAppChat = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className={`font-semibold truncate text-lg transition-colors ${
-                            isSelected ? "text-purple-300" : "text-white group-hover:text-purple-300"
+                            isSelected ? "text-blue-300" : "text-white group-hover:text-blue-300"
                           }`}>
                             {connection.firstName} {connection.lastName}
                           </h3>
                           {lastMsgTime && (
                             <span className={`text-xs ml-2 flex-shrink-0 px-2 py-1 rounded-lg transition-colors ${
                               isSelected 
-                                ? "text-purple-200 bg-purple-500/20" 
+                                ? "text-blue-200 bg-blue-500/20" 
                                 : "text-gray-400 bg-gray-700/50"
                             }`}>
                               {lastMsgTime}
@@ -433,7 +433,7 @@ const WhatsAppChat = () => {
                           </p>
                           {/* Unread count badge */}
                           {/* {unreadCount > 0 && (
-                            <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs rounded-full px-2.5 py-1 ml-2 font-semibold shadow-lg animate-pulse">
+                            <span className="bg-gradient-to-r from-blue-500 to-blue-500 text-white text-xs rounded-full px-2.5 py-1 ml-2 font-semibold shadow-lg animate-pulse">
                               {unreadCount}
                             </span>
                           )} */}
@@ -455,10 +455,10 @@ const WhatsAppChat = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center text-white">
             <div className="text-center max-w-md">
-              <div className="w-32 h-32 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-gray-700/50">
+              <div className="w-32 h-32 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 flex items-center justify-center border border-gray-700/50">
                 <MessageCircle className="w-16 h-16 text-gray-400" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
                 Welcome to DevTalks
               </h3>
               <p className="text-gray-400 text-lg leading-relaxed">
@@ -478,13 +478,13 @@ const WhatsAppChat = () => {
       <div className="md:hidden flex-1 flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
         {selectedChat ? (
           <>
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3 border-b border-gray-700/50 flex-shrink-0 shadow-lg">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 border-b border-gray-700/50 flex-shrink-0 shadow-lg">
               <button
                 onClick={() => {
                   setSelectedChat(null);
                   navigate('/app/chats', { replace: true });
                 }}
-                className="text-white hover:text-purple-300 flex items-center space-x-3 transition-colors"
+                className="text-white hover:text-blue-300 flex items-center space-x-3 transition-colors"
               >
                 <div className="p-2 rounded-xl hover:bg-gray-700/50 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -501,7 +501,7 @@ const WhatsAppChat = () => {
         ) : (
           <>
             {/* Chat List Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3 flex items-center justify-between border-b border-gray-700/50 flex-shrink-0 shadow-lg">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between border-b border-gray-700/50 flex-shrink-0 shadow-lg">
               <div className="flex items-center space-x-4">
                 <button className="p-2.5 rounded-xl hover:bg-gray-700/50 transition-colors">
                   <Menu className="w-5 h-5 text-gray-300" />
@@ -523,26 +523,26 @@ const WhatsAppChat = () => {
                 onClick={() => setActiveView('chats')}
                 className={`flex-1 px-4 py-4 text-sm font-semibold transition-all duration-300 relative ${
                   activeView === 'chats'
-                    ? 'text-white bg-gradient-to-r from-blue-500/20 to-purple-500/20'
+                    ? 'text-white bg-gradient-to-r from-blue-500/20 to-blue-500/20'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
                 }`}
               >
                 Messages
                 {activeView === 'chats' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"></div>
                 )}
               </button>
               <button
                 onClick={() => setActiveView('friends')}
                 className={`flex-1 px-4 py-4 text-sm font-semibold transition-all duration-300 relative ${
                   activeView === 'friends'
-                    ? 'text-white bg-gradient-to-r from-purple-500/20 to-pink-500/20'
+                    ? 'text-white bg-gradient-to-r from-blue-500/20 to-pink-500/20'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
                 }`}
               >
                 Friends
                 {activeView === 'friends' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-pink-500"></div>
                 )}
               </button>
             </div>
@@ -556,7 +556,7 @@ const WhatsAppChat = () => {
                   placeholder={activeView === 'chats' ? "Search conversations..." : "Search friends..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-700/50 text-white placeholder-gray-400 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:bg-gray-700/70 transition-all duration-300 border border-gray-600/30"
+                  className="w-full bg-gray-700/50 text-white placeholder-gray-400 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-gray-700/70 transition-all duration-300 border border-gray-600/30"
                 />
               </div>
             </div>
@@ -591,7 +591,7 @@ const WhatsAppChat = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-white font-semibold truncate group-hover:text-purple-300 transition-colors">
+                            <h3 className="text-white font-semibold truncate group-hover:text-blue-300 transition-colors">
                               {connection.firstName} {connection.lastName}
                             </h3>
                             <p className="text-sm text-gray-400 truncate">
@@ -642,7 +642,7 @@ const WhatsAppChat = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <h3 className="text-white font-semibold truncate group-hover:text-purple-300 transition-colors">
+                              <h3 className="text-white font-semibold truncate group-hover:text-blue-300 transition-colors">
                                 {connection.firstName} {connection.lastName}
                               </h3>
                               {lastMsgTime && (

@@ -50,8 +50,8 @@ const Request = () => {
   console.log("Requests Data:", request);
   if (request.length === 0)
     return (
-      <div className="flex justify-center items-center h-64">
-        <h1 className="text-xl font-semibold text-gray-600">No Requests</h1>
+      <div className="flex justify-center items-center h-screen">
+        <h1 className="text-6xl font-semibold text-blue-500">No Requests</h1>
       </div>
     );
 
