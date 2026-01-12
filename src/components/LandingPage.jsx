@@ -60,11 +60,11 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         {/* Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-800/20 to-blue-800/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-800/20 to-blue-800/20"></div>
         <div className="absolute inset-0 opacity-40">
           <div className="w-full h-full" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
@@ -76,10 +76,10 @@ const LandingPage = () => {
             {/* Logo/Brand */}
             <div className="flex justify-center mb-8">
               <div className="flex items-center space-x-3">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl">
                   <MessageCircle className="w-8 h-8 text-white" />
                 </div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
                   DevTalks
                 </h1>
               </div>
@@ -88,7 +88,7 @@ const LandingPage = () => {
             {/* Hero Title */}
             <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
               Connect, Chat,
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent block">
+              <span className="bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent block">
                 Collaborate
               </span>
             </h2>
@@ -102,7 +102,7 @@ const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               <button
                 onClick={() => navigate('/signup')}
-                className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-purple-500/25 transform hover:scale-105 flex items-center space-x-2"
+                className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 flex items-center space-x-2"
               >
                 <span>Get Started Free</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -150,14 +150,14 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group p-8 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-3xl border border-gray-700/50 hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/10 backdrop-blur-sm"
+                className="group p-8 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-3xl border border-gray-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 backdrop-blur-sm"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <div className="text-purple-400 group-hover:text-purple-300 transition-colors">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <div className="text-blue-400 group-hover:text-blue-300 transition-colors">
                     {feature.icon}
                   </div>
                 </div>
-                <h4 className="text-xl font-bold text-white mb-4 group-hover:text-purple-300 transition-colors">
+                <h4 className="text-xl font-bold text-white mb-4 group-hover:text-blue-300 transition-colors">
                   {feature.title}
                 </h4>
                 <p className="text-gray-400 leading-relaxed">
@@ -185,7 +185,7 @@ const LandingPage = () => {
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="p-8 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-3xl border border-gray-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-all duration-300"
+                className="p-8 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-3xl border border-gray-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300"
               >
                 <div className="flex items-center mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
@@ -196,7 +196,7 @@ const LandingPage = () => {
                   "{testimonial.content}"
                 </p>
                 <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mr-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center mr-4">
                     <span className="text-white font-bold text-lg">
                       {testimonial.name.charAt(0)}
                     </span>
@@ -213,10 +213,10 @@ const LandingPage = () => {
       </div>
 
       {/* CTA Section */}
-      <div className="py-24 bg-gradient-to-r from-purple-900/50 to-blue-900/50">
+      <div className="py-24 bg-gradient-to-r from-blue-900/50 to-blue-900/50">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
-            <Heart className="w-16 h-16 text-purple-400 mx-auto mb-6" />
+            <Heart className="w-16 h-16 text-blue-400 mx-auto mb-6" />
           </div>
           <h3 className="text-4xl md:text-5xl font-bold text-white mb-6">
             Ready to Transform Your Communication?
@@ -228,7 +228,7 @@ const LandingPage = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/signup')}
-              className="group px-10 py-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-purple-500/25 transform hover:scale-105 flex items-center justify-center space-x-3"
+              className="group px-10 py-5 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-white font-bold text-lg rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 flex items-center justify-center space-x-3"
             >
               <span>Start Your Free Journey</span>
               <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
@@ -248,7 +248,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                 <MessageCircle className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">DevTalks</span>
