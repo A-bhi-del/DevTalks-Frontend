@@ -86,13 +86,6 @@ const EditProfile = () => {
 
   return (
     <>
-     {showtoast && (
-        <div className="toast toast-top toast-center">
-          <div className="alert alert-success">
-            <span>Changes saved successfully.</span>
-          </div>
-        </div>
-      )}
       <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-6 lg:gap-10 px-4 overflow-x-hidden">
         <div className="flex flex-col items-center justify-center mt-6 mb-8 w-full max-w-xl">
           <div className="w-full max-w-md sm:max-w-lg p-8 rounded-2xl shadow-2xl bg-white/10 backdrop-blur-lg border border-white/20 transition-all duration-300 hover:shadow-blue-500/30">
@@ -126,7 +119,7 @@ const EditProfile = () => {
                     onChange={(e) => setLastName(e.target.value)}
                     className="w-full px-4 py-3 sm:py-2 border border-gray-500 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                     placeholder="Last Name"
-                  />
+                    />
                 </div>
               </div>
 
@@ -156,10 +149,10 @@ const EditProfile = () => {
                     value={gender ?? ""}
                     onChange={(e) => setGender(e.target.value)}
                     className="w-full px-4 py-3 sm:py-2 border border-gray-500 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
-                  >
+                    >
                     <option
                       value="" className="bg-gray-800 text-white" disabled
-                    >
+                      >
                       Select your gender
                     </option>
                     <option value="male" className="bg-gray-800 text-white">Male</option>
@@ -181,7 +174,7 @@ const EditProfile = () => {
                   onChange={(e) => setPhotoUrl(e.target.value)}
                   className="w-full px-4 py-3 sm:py-2 border border-gray-500 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                   placeholder="Photo URL"
-                />
+                  />
               </div>
 
               <div className="mb-4">
@@ -204,7 +197,7 @@ const EditProfile = () => {
                 type="submit"
                 disabled={isSaving}
                 className={`w-full py-3 sm:py-2 px-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg font-medium shadow-lg hover:shadow-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-              >
+                >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
@@ -216,6 +209,13 @@ const EditProfile = () => {
           />
         </div>
       </div>
+      {showtoast && (
+         <div className="toast toast-top toast-center">
+           <div className="alert alert-success">
+             <span>Changes saved successfully.</span>
+           </div>
+         </div>
+       )}
     </>
   );
 };

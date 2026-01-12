@@ -15,23 +15,13 @@ import Message from "./components/message";
 import WhatsAppChat from "./components/WhatsAppChat";
 import LandingPage from "./components/LandingPage";
 import { addUser } from "./utils/userSlice";
+import { fetchUser } from "./utils/userActions.js";
 
 function AppContent() {
   const dispatch = useDispatch();
-
-        useEffect(() => {
-          // Initialize user from localStorage on app start
-          const user = JSON.parse(localStorage.getItem('user') || 'null');
-          
-          if (user && user._id) {
-            dispatch(addUser(user));
-          } else {
-            // Clear any existing cookies
-            document.cookie.split(";").forEach(function(c) { 
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-            });
-          }
-        }, [dispatch]);
+   useEffect(() => {
+    dispatch(fetchUser());
+  }, [dispatch]);
 
   return (
     <BrowserRouter basename="/">

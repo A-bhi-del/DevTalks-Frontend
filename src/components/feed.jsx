@@ -115,17 +115,6 @@ const FeedPage = () => {
     setForceUpdate(prev => prev + 1);
   };
 
-  // Debug info
-  console.log("Current feed state:", feed);
-  console.log("Feed length:", feed?.length);
-  console.log("Current index:", currentIndex);
-
-  // Force refresh function
-  const forceRefreshFeed = () => {
-    console.log("🔄 Force refreshing feed...");
-    dispatch(addfeed([])); // Clear current feed
-    getFeed(); // Fetch new feed
-  };
 
   // Show login required if user not logged in (check both Redux and localStorage)
   const localUser = JSON.parse(localStorage.getItem('user') || 'null');
@@ -159,20 +148,6 @@ const FeedPage = () => {
             <li>• There are no other users in the database</li>
             <li>• Authentication issue</li>
           </ul>
-          <button
-            onClick={forceRefreshFeed}
-            className="px-6 py-3 bg-blue-600 rounded-xl text-white font-semibold hover:bg-blue-700 transition duration-300 mb-4"
-          >
-            🔄 Refresh Feed
-          </button>
-          <div className="text-xs text-gray-500 mb-4">
-            Check console for detailed logs
-          </div>
-          <div className="mb-4 p-4 bg-gray-800 rounded-lg">
-            <p className="text-sm text-gray-400">Debug Info:</p>
-            <p className="text-sm">Feed: {JSON.stringify(feed)}</p>
-            <p className="text-sm">User: {user ? user.firstName : 'Not logged in'}</p>
-          </div>
         </div>
       </div>
     );

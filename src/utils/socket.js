@@ -20,7 +20,6 @@ const readToken = (explicitToken) => {
   try {
     const lsToken = localStorage.getItem('token');
     if (lsToken) {
-      console.log("💾 Using token from localStorage");
       return lsToken;
     }
   } catch {}
@@ -29,12 +28,10 @@ const readToken = (explicitToken) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.token) {
-      console.log("👤 Using token from user object");
       return user.token;
     }
   } catch {}
   
-  console.log("❌ No token found anywhere");
   return undefined;
 };
 

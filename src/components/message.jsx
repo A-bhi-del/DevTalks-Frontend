@@ -112,15 +112,18 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       }
 
       const chatmessage = (messageSave?.data?.messages || []).map((msg) => {
-        const { SenderId, text } = msg;
+        const { SenderId, text, status, createdAt } = msg;
+
         return {
           senderId: SenderId?._id,
           firstName: SenderId?.firstName,
           lastName: SenderId?.lastName,
           text,
-          timestamp: msg?.createdAt,
+          status: status || "sent",
+          timestamp: createdAt,
         };
       });
+
 
       setMessages(chatmessage);
     } catch (error) {
@@ -135,9 +138,30 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     saveMessage(targetuserId);
   }, [targetuserId]);
 
+  // ✅ STEP-2: Mark messages as read when chat opens
+    useEffect(() => {
+      if (!userId || !targetuserId) return;
+
+      const socket = getSocket(userId);
+      console.log("📤 Emitting mark-messages-read", {
+        userId,
+        targetuserId,
+      });
+
+      socket.emit("mark-messages-read", {
+        targetuserId,
+      });
+
+    }, [userId, targetuserId]);
+
+
   useEffect(() => {
     if (!userId) return;
     const socket = getSocket(userId);
+    console.log("📤 Emitting", {
+        userId,
+        targetuserId,
+      });
 
     // const doJoin = () => socket.emit("joinChat", { targetuserId });
     const doJoin = () => {
@@ -156,39 +180,9 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       socket.once("connect", doJoin);
     }
 
-    // const handleReceive = ({ text, firstName, lastName, senderId, createdAt }) => {
-    //   setMessages((messages) => {
-    //     // Check if this message is from current user (optimistic update)
-    //     if (senderId === userId) {
-    //       // Replace temporary message with real message
-    //       return messages.map(msg => 
-    //         msg.tempId ? {
-    //           ...msg,
-    //           tempId: undefined, // Remove temp ID
-    //           timestamp: createdAt || new Date()
-    //         } : msg
-    //       );
-    //     } else {
-    //       // Add new message from other user
-    //       const newMessage = { text, firstName, lastName, senderId, timestamp: createdAt || new Date() };
-          
-    //       // Create notification for new message
-    //       createNotification({
-    //         type: 'message',
-    //         title: `New message from ${firstName} ${lastName}`,
-    //         message: text.length > 50 ? text.substring(0, 50) + '...' : text,
-    //         senderId: senderId,
-    //         isRead: false
-    //       });
-          
-    //       return [...messages, newMessage];
-    //     }
-    //   });
-    // };
-
     // Create notification function
     const handleReceive = ({ _id, text, firstName, lastName, senderId, createdAt }) => {
-  setMessages((prev) => [
+      setMessages((prev) => [
     ...prev,
     {
       _id,
@@ -200,16 +194,6 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     },
   ]);
 };
-
-    const createNotification = async (notificationData) => {
-      try {
-        await axios.post(`${BASE_URL}/notifications`, notificationData, {
-          withCredentials: true,
-        });
-      } catch (err) {
-        console.error("Error creating notification:", err);
-      }
-    };
 
     const handleStatus = ({ userId, isOnline, lastSeen }) => {
       setUserStatus((prev) => ({
@@ -254,6 +238,17 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       setShowVoiceCall(false);
       setShowVideoCall(false);
     };
+    // ✅ STEP-3: Handle read receipts (✓✓)
+    const handleMessagesRead = ({ readerId }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.senderId === userId
+            ? { ...msg, status: "read" }
+            : msg
+        )
+      );
+    };
+
 
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
@@ -261,6 +256,8 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     socket.on("call-accepted", handleCallAccepted);
     socket.on("call-rejected", handleCallRejected);
     socket.on("call-ended", handleCallEnded);
+    socket.on("messages-read", handleMessagesRead);
+
     
     // request latest presence for recipient on mount
     // socket.emit("joinChat", { targetuserId });
@@ -310,7 +307,6 @@ useEffect(() => {
   const socket = getSocket(userId);
 
   const handleReconnect = () => {
-    console.log("🔄 Socket reconnected, rejoining chat room");
 
     socket.emit("joinChat", { targetuserId }, (res) => {
       if (res?.status === "joined") {
@@ -389,34 +385,6 @@ useEffect(() => {
       }
     }
   };
-
-  // const handleSend = () => {
-  //   if (!newmessage.trim()) return;
-  //   const messageText = newmessage.trim();
-  //   setNewmessage(""); // Clear input immediately
-    
-  //   const socket = getSocket(userId);
-  //   socket.emit("sendMessage", {
-  //     text: messageText,
-  //     targetuserId,
-  //     firstName: user.firstName,
-  //     lastName: user.lastName,
-  //   });
-    
-  //   // Optimistic UI update - add temporary message with unique ID
-  //   const tempId = `temp-${Date.now()}-${Math.random()}`;
-  //   setMessages((messages) => [
-  //     ...messages,
-  //     {
-  //       text: messageText,
-  //       firstName: user.firstName,
-  //       lastName: user.lastName,
-  //       senderId: userId,
-  //       timestamp: new Date(),
-  //       tempId: tempId, // Temporary ID to identify this message
-  //     },
-  //   ]);
-  // };
 
   // Scroll neeche jaane ka effect
       const handleSend = () => {
@@ -899,8 +867,19 @@ useEffect(() => {
                       })}
                     </span>
                     {isTempMessage && <span className="ml-2 animate-spin">⏳</span>}
-                    {isOwnMessage && !isTempMessage && (
+                    {/* {isOwnMessage && !isTempMessage && (
                       <span className="ml-2 text-blue-200">✓</span>
+                    )} */}
+                    {isOwnMessage && !isTempMessage && (
+                      <span
+                        className={`ml-2 text-xs ${
+                          msg.status === "read"
+                            ? "text-green-300"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        {msg.status === "read" ? "✓✓" : "✓"}
+                      </span>
                     )}
                   </div>
                 </div>
