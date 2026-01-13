@@ -28,6 +28,11 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedMsg, setSelectedMsg] = useState(null);
+  const [chatId, setChatId] = useState(null);
+
+
   const user = useSelector((store) => store.user);
   const userId = user?._id;
 
@@ -86,6 +91,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       const messageSave = await axios.get(`${BASE_URL}/chat/${targetuserId}`, {
         withCredentials: true,
       });
+      setChatId(messageSave?.data?._id);
 
       // Try to get user data from messages if available (may have more recent status)
       const recipientMsg = messageSave?.data?.messages?.find(
@@ -112,18 +118,19 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       }
 
       const chatmessage = (messageSave?.data?.messages || []).map((msg) => {
-        const { SenderId, text, status, createdAt } = msg;
+          const { _id, SenderId, text, status, createdAt, isDeletedForEveryone } = msg;
 
-        return {
-          senderId: SenderId?._id,
-          firstName: SenderId?.firstName,
-          lastName: SenderId?.lastName,
-          text,
-          status: status || "sent",
-          timestamp: createdAt,
-        };
+          return {
+            _id,
+            senderId: SenderId?._id,
+            firstName: SenderId?.firstName,
+            lastName: SenderId?.lastName,
+            text,
+            status: status || "sent",
+            timestamp: createdAt,
+            isDeletedForEveryone: !!isDeletedForEveryone,
+          };
       });
-
 
       setMessages(chatmessage);
     } catch (error) {
@@ -258,6 +265,19 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       );
     };
 
+    const handleDeleteForMe = ({ messageId }) => {
+        setMessages((prev) => prev.filter((m) => m._id !== messageId));
+    };
+
+    const handleDeleteForEveryone = ({ messageId }) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m._id === messageId
+                  ? { ...m, text: "This message was deleted", isDeletedForEveryone: true }
+                  : m
+              )
+          );
+    };
 
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
@@ -267,6 +287,9 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     socket.on("call-ended", handleCallEnded);
     socket.on("messages-read", handleMessagesRead);
     socket.on("message-delivered", handleDelivered);
+    socket.on("message-deleted-for-me", handleDeleteForMe);
+    socket.on("message-deleted-for-everyone", handleDeleteForEveryone);
+
 
     
     // request latest presence for recipient on mount
@@ -306,6 +329,9 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       socket.off("call-ended", handleCallEnded);
       socket.off("message-delivered", handleDelivered);
       socket.off("messages-read", handleMessagesRead);
+      socket.off("message-deleted-for-me", handleDeleteForMe);
+      socket.off("message-deleted-for-everyone", handleDeleteForEveryone);
+
       if (presenceTimer) clearTimeout(presenceTimer);
       if (periodicPresenceCheck) clearInterval(periodicPresenceCheck);
       // Do not disconnect globally here; component unmount shouldn't kill app-wide socket
@@ -455,7 +481,57 @@ useEffect(() => {
           }
         }
       );
-    };
+      };
+      const openDeleteModal = (msg) => {
+        console.log("🟡 openDeleteModal called:", msg);
+        setSelectedMsg(msg);
+        setShowDeleteModal(true);
+      };
+
+      const deleteForMe = () => {
+  console.log("🔴 deleteForMe clicked", {
+    selectedMsg,
+    chatId,
+    userId,
+  });
+
+  if (!selectedMsg?._id || !chatId) {
+    console.log("❌ Missing selectedMsg._id or chatId");
+    return;
+  }
+
+  const socket = getSocket(userId);
+
+  console.log("📤 emitting delete-message-for-me", {
+    chatId,
+    messageId: selectedMsg._id,
+  });
+
+  console.log("🟢 socket connected?", socket.connected);
+  socket.emit("delete-message-for-me", {
+    chatId,
+    messageId: selectedMsg._id,
+  });
+
+  setShowDeleteModal(false);
+  setSelectedMsg(null);
+};
+
+
+      const deleteForEveryone = () => {
+        if (!selectedMsg?._id || !chatId) return;
+
+        const socket = getSocket(userId);
+        socket.emit("delete-message-for-everyone", {
+          chatId,
+          messageId: selectedMsg._id,
+          targetuserId, // useful for room emit
+        });
+
+        setShowDeleteModal(false);
+        setSelectedMsg(null);
+      };
+
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -867,8 +943,30 @@ useEffect(() => {
                       {msg.firstName + " " + msg.lastName}
                     </div>
                   )}
+
                   {/* Message */}
-                  <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed">{msg.text}</div>
+                  <div className="flex items-start justify-between gap-3">
+                      <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1">
+                        {msg.isDeletedForEveryone ? (
+                          <i className="text-gray-300">This message was deleted</i>
+                        ) : (
+                          msg.text
+                        )}
+                      </div>
+
+                      {!msg.isDeletedForEveryone && (
+                        <button
+                          onClick={() =>{ 
+                            console.log("🟢 3-dot clicked msg:", msg);
+                            openDeleteModal(msg)}}
+                          
+                          className="text-xs opacity-60 hover:opacity-100 px-2"
+                          title="Delete"
+                        >
+                          ⋮
+                        </button>
+                      )}
+                  </div>
 
                   {/* Time */}
                   <div className={`text-[10px] lg:text-xs opacity-70 mt-2 flex items-center ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
@@ -949,6 +1047,46 @@ useEffect(() => {
         )}
       </div>
     </div>
+    {/* delete modal */}
+    {showDeleteModal && selectedMsg && (
+      <div
+        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+        onClick={() => setShowDeleteModal(false)}
+      >
+        <div
+          className="bg-slate-800 p-6 rounded-2xl w-[90%] max-w-sm border border-gray-600"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-white text-lg font-bold mb-4">Delete message?</h3>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={deleteForMe}
+              className="w-full py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white"
+            >
+              Delete for me
+            </button>
+
+            {selectedMsg.senderId === userId && (
+              <button
+                onClick={deleteForEveryone}
+                className="w-full py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white"
+              >
+                Delete for everyone
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="w-full py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     </>
   );
 };
