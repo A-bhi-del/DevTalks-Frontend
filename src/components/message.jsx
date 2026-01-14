@@ -31,7 +31,10 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMsg, setSelectedMsg] = useState(null);
   const [chatId, setChatId] = useState(null);
-
+  const [editingMsg, setEditingMsg] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [reactionMsg, setReactionMsg] = useState(null);
+  const [pinnedMsg, setPinnedMsg] = useState(null);
 
   const user = useSelector((store) => store.user);
   const userId = user?._id;
@@ -118,21 +121,56 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       }
 
       const chatmessage = (messageSave?.data?.messages || []).map((msg) => {
-          const { _id, SenderId, text, status, createdAt, isDeletedForEveryone } = msg;
+        const {
+          SenderId,
+          text,
+          status,
+          createdAt,
+          isEdited,
+          editedAt,
+          isDeletedForEveryone,
+          deletedAt,
+          reactions,
+          deletedFor,
 
-          return {
-            _id,
-            senderId: SenderId?._id,
-            firstName: SenderId?.firstName,
-            lastName: SenderId?.lastName,
-            text,
-            status: status || "sent",
-            timestamp: createdAt,
-            isDeletedForEveryone: !!isDeletedForEveryone,
-          };
+          // ✅ PIN fields
+          isPinned,
+          pinnedAt,
+        } = msg;
+
+        return {
+          _id: msg._id,
+          senderId: SenderId?._id,
+          firstName: SenderId?.firstName,
+          lastName: SenderId?.lastName,
+
+          text,
+          status: status || "sent",
+          timestamp: createdAt,
+
+          // ✅ Edit
+          isEdited: !!isEdited,
+          editedAt: editedAt || null,
+
+          // ✅ Delete for everyone
+          isDeletedForEveryone: !!isDeletedForEveryone,
+          deletedAt: deletedAt || null,
+
+          // ✅ Delete for me
+          deletedFor: deletedFor || [],
+
+          // ✅ Reactions
+          reactions: reactions || [],
+
+          // ✅ Pin
+          isPinned: !!isPinned,
+          pinnedAt: pinnedAt || null,
+        };
       });
 
       setMessages(chatmessage);
+      const pinned = chatmessage.find((m) => m.isPinned);
+      setPinnedMsg(pinned || null);
     } catch (error) {
       console.error("Error fetching messages:", error);
       // Still try to fetch user data even if messages fail
@@ -189,18 +227,18 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
     // Create notification function
     const handleReceive = ({ _id, text, firstName, lastName, senderId, createdAt }) => {
-      setMessages((prev) => [
-    ...prev,
-    {
-      _id,
-      text,
-      firstName,
-      lastName,
-      senderId,
-      timestamp: createdAt || new Date(),
-    },
-  ]);
-};
+          setMessages((prev) => [
+        ...prev,
+        {
+          _id,
+          text,
+          firstName,
+          lastName,
+          senderId,
+          timestamp: createdAt || new Date(),
+        },
+      ]);
+    };
 
     const handleStatus = ({ userId, isOnline, lastSeen }) => {
       setUserStatus((prev) => ({
@@ -245,7 +283,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       setShowVoiceCall(false);
       setShowVideoCall(false);
     };
-    // ✅ STEP-3: Handle read receipts (✓✓)
+    
     const handleMessagesRead = ({ readerId }) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -255,6 +293,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         )
       );
     };
+
     const handleDelivered = ({ messageId }) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -279,6 +318,45 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           );
     };
 
+    const handleEdited = ({ messageId, newText, editedAt }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, text: newText, isEdited: true, editedAt }
+            : msg
+        )
+      );
+    };
+
+    const handleReacted = ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId ? { ...m, reactions } : m
+        )
+      );
+    };
+
+   const handlePinned = ({ messageId }) => {
+      setMessages((prev) => {
+        const updated = prev.map((m) => ({
+          ...m,
+          isPinned: m._id === messageId,
+        }));
+
+        const found = updated.find((m) => m._id === messageId);
+        if (found) setPinnedMsg(found);   // ✅ same updated array se
+
+        return updated;
+      });
+    };
+
+
+    const handleUnpinned = () => {
+      setMessages((prev) => prev.map((m) => ({ ...m, isPinned: false })));
+      setPinnedMsg(null);
+    };
+
+
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
     socket.on("incoming-call", handleIncomingCall);
@@ -289,8 +367,10 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     socket.on("message-delivered", handleDelivered);
     socket.on("message-deleted-for-me", handleDeleteForMe);
     socket.on("message-deleted-for-everyone", handleDeleteForEveryone);
-
-
+    socket.on("message-edited", handleEdited);
+    socket.on("message-reacted", handleReacted);
+    socket.on("message-pinned", handlePinned);
+    socket.on("message-unpinned", handleUnpinned);
     
     // request latest presence for recipient on mount
     // socket.emit("joinChat", { targetuserId });
@@ -331,6 +411,10 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       socket.off("messages-read", handleMessagesRead);
       socket.off("message-deleted-for-me", handleDeleteForMe);
       socket.off("message-deleted-for-everyone", handleDeleteForEveryone);
+      socket.off("message-edited", handleEdited);
+      socket.off("message-reacted", handleReacted);
+      socket.off("message-pinned", handlePinned);
+      socket.off("message-unpinned", handleUnpinned);
 
       if (presenceTimer) clearTimeout(presenceTimer);
       if (periodicPresenceCheck) clearInterval(periodicPresenceCheck);
@@ -472,7 +556,7 @@ useEffect(() => {
               )
             );
           } else {
-            // ❌ Failed → rollback
+            // Failed → rollback
             console.error("Message failed:", res?.message);
 
             setMessages((prev) =>
@@ -893,6 +977,32 @@ useEffect(() => {
           </button>
         </div>
       </div>
+      {pinnedMsg && (
+        <div className="px-6 py-2 bg-yellow-500/10 border-b border-yellow-400/20 text-yellow-200 flex items-center justify-between gap-3">
+          <div
+            className="cursor-pointer flex-1 truncate"
+            onClick={() => {
+              document.getElementById(`msg-${pinnedMsg._id}`)?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }}
+          >
+            📌 <span className="font-semibold">Pinned:</span>{" "}
+            <span className="opacity-90">{pinnedMsg.text}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              const socket = getSocket(userId);
+              socket.emit("unpin-message", { chatId });
+            }}
+            className="text-xs px-3 py-1 rounded-full bg-yellow-500/20 hover:bg-yellow-500/30"
+          >
+            Unpin
+          </button>
+        </div>
+      )}
 
       {/* Messages area */}
       <div className="flex-1 p-4 lg:p-6 overflow-y-auto space-y-3 lg:space-y-4 bg-gradient-to-b from-slate-800/30 to-slate-900/50 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
@@ -927,69 +1037,133 @@ useEffect(() => {
             const isTempMessage = msg.tempId;
             return (
               <div
+                id={`msg-${msg._id}`}
                 key={msg.tempId || msg.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 lg:mb-4`}
+                className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-3 lg:mb-4`}
               >
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] lg:max-w-[60%] xl:max-w-[50%] rounded-2xl px-4 py-3 lg:px-5 lg:py-4 shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+                  className={`group relative max-w-[85%] sm:max-w-[75%] lg:max-w-[60%] xl:max-w-[50%] rounded-2xl px-4 py-3 lg:px-5 lg:py-4 shadow-lg backdrop-blur-sm border transition-all duration-300 ${
                     isOwnMessage
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-lg border-blue-400/30 shadow-blue-500/25"
                       : "bg-gradient-to-br from-gray-700/80 to-gray-800/80 text-white rounded-bl-lg border-gray-600/30 shadow-gray-900/50"
-                  } ${isTempMessage ? 'opacity-70 scale-95' : 'hover:scale-[1.02]'}`}
+                  } ${isTempMessage ? "opacity-70 scale-95" : "hover:scale-[1.02]"}`}
                 >
                   {/* Name - only show for other person's messages */}
                   {!isOwnMessage && (
                     <div className="text-xs lg:text-sm font-semibold mb-2 text-blue-300">
-                      {msg.firstName + " " + msg.lastName}
+                      {msg.firstName} {msg.lastName}
                     </div>
                   )}
 
-                  {/* Message */}
-                  <div className="flex items-start justify-between gap-3">
-                      <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1">
-                        {msg.isDeletedForEveryone ? (
-                          <i className="text-gray-300">This message was deleted</i>
-                        ) : (
-                          msg.text
-                        )}
-                      </div>
+                  {/* Message Content + Buttons */}
+                  <div className="relative flex items-start gap-3">
+                    {/* Text */}
+                    <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1 pr-2">
+                      {msg.isDeletedForEveryone ? (
+                        <i className="text-gray-300 opacity-80">This message was deleted</i>
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
 
-                      {!msg.isDeletedForEveryone && (
+                    {/* Top-right actions */}
+                    {!msg.isDeletedForEveryone && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Edit */}
+                        {isOwnMessage && (
+                          <button
+                            onClick={() => {
+                              setEditingMsg(msg);
+                              setEditText(msg.text);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-200 text-white/60 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10"
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                        )}
+
+                        {/* More */}
                         <button
-                          onClick={() =>{ 
+                          onClick={() => {
                             console.log("🟢 3-dot clicked msg:", msg);
-                            openDeleteModal(msg)}}
-                          
-                          className="text-xs opacity-60 hover:opacity-100 px-2"
-                          title="Delete"
+                            openDeleteModal(msg);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-all duration-200 text-white/60 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10"
+                          title="More"
                         >
                           ⋮
                         </button>
-                      )}
+                      </div>
+                    )}
+                    
+
+                    {/* Reaction button bottom-right floating */}
+                    {!msg.isDeletedForEveryone && (
+                      <button
+                        onClick={() => setReactionMsg(msg)}
+                        className="absolute -bottom-5 right-0 opacity-0 group-hover:opacity-100 transition-all duration-200 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 px-2 py-[3px] rounded-full text-xs shadow-md"
+                        title="React"
+                      >
+                        😊
+                      </button>
+
+                    )}
                   </div>
 
-                  {/* Time */}
-                  <div className={`text-[10px] lg:text-xs opacity-70 mt-2 flex items-center ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                  {/* Footer: Time + Edited + Status */}
+                  <div
+                    className={`mt-3 flex items-center gap-2 text-[10px] lg:text-xs opacity-70 ${
+                      isOwnMessage ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {msg.isPinned && (
+                      <span className="text-yellow-300 text-xs flex items-center gap-1">
+                        📌 
+                      </span>
+                    )}
+                    
                     <span>
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
-                    {isTempMessage && <span className="ml-2 animate-spin">⏳</span>}
-                    {/* {isOwnMessage && !isTempMessage && (
-                      <span className="ml-2 text-blue-200">✓</span>
-                    )} */}
+                    {msg.isEdited && (
+                      <span className="text-[10px] lg:text-xs text-gray-200">(edited)</span>
+                    )}
+
+                    {isTempMessage && <span className="animate-spin">⏳</span>}
+
                     {isOwnMessage && !isTempMessage && (
-                        <span className="ml-2 text-xs">
-                          {msg.status === "sent" && <span className="text-gray-300">✓</span>}
-                          {msg.status === "delivered" && <span className="text-gray-300">✓✓</span>}
-                          {msg.status === "read" && <span className="text-green-400">✓✓</span>}
-                        </span>
+                      <span className="text-xs">
+                        {msg.status === "sent" && <span className="text-gray-300">✓</span>}
+                        {msg.status === "delivered" && <span className="text-gray-300">✓✓</span>}
+                        {msg.status === "read" && <span className="text-green-400">✓✓</span>}
+                      </span>
                     )}
                   </div>
+
+                  {/* Reactions chips (attached at bottom) */}
+                  {msg.reactions?.length > 0 && (
+                    <div
+                      className={`mt-2 flex gap-1 flex-wrap ${
+                        isOwnMessage ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      {msg.reactions.map((r) => (
+                        <span
+                          key={`${r.userId}-${r.emoji}`}
+                          className="px-2 py-[2px] bg-white/10 rounded-full text-xs backdrop-blur-sm border border-white/10 shadow-sm"
+                        >
+                          {r.emoji}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+
             );
           })
         )}
@@ -1053,6 +1227,7 @@ useEffect(() => {
         className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
         onClick={() => setShowDeleteModal(false)}
       >
+
         <div
           className="bg-slate-800 p-6 rounded-2xl w-[90%] max-w-sm border border-gray-600"
           onClick={(e) => e.stopPropagation()}
@@ -1067,6 +1242,19 @@ useEffect(() => {
               Delete for me
             </button>
 
+        <button
+            onClick={() => {
+              const socket = getSocket(userId);
+              socket.emit("pin-message", {
+                chatId,
+                messageId: selectedMsg._id,
+              });
+              closeDeleteModal(); // optional
+            }}
+            className="w-full py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white"
+          >
+            📌 Pin Message
+        </button>
             {selectedMsg.senderId === userId && (
               <button
                 onClick={deleteForEveryone}
@@ -1086,7 +1274,74 @@ useEffect(() => {
         </div>
       </div>
     )}
+    {editingMsg && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 w-full max-w-md rounded-2xl p-6 border border-gray-700">
+          <h2 className="text-white font-bold text-lg mb-4">Edit Message</h2>
 
+          <input
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-gray-800 text-white border border-gray-600 focus:outline-none"
+          />
+
+          <div className="flex gap-3 mt-4 justify-end">
+            <button
+              onClick={() => setEditingMsg(null)}
+              className="px-4 py-2 rounded-xl bg-gray-700 text-white"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={() => {
+                const socket = getSocket(userId);
+
+                socket.emit("edit-message", {
+                  chatId,
+                  messageId: editingMsg._id,
+                  newText: editText,
+                });
+
+                setEditingMsg(null);
+              }}
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {reactionMsg && (
+      <div
+        className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        onClick={() => setReactionMsg(null)}
+      >
+        <div
+          className="bg-gray-900 p-4 rounded-2xl border border-gray-700 flex gap-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {["👍", "❤️", "😂", "😮", "😢", "😡"].map((emo) => (
+            <button
+              key={emo}
+              onClick={() => {
+                const socket = getSocket(userId);
+                socket.emit("react-message", {
+                  chatId,
+                  messageId: reactionMsg._id,
+                  emoji: emo,
+                });
+                setReactionMsg(null);
+              }}
+              className="text-2xl hover:scale-125 transition-transform"
+            >
+              {emo}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
     </>
   );
 };
