@@ -35,11 +35,161 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const [editText, setEditText] = useState("");
   const [reactionMsg, setReactionMsg] = useState(null);
   const [pinnedMsg, setPinnedMsg] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [playingId, setPlayingId] = useState(null);
+  const audioRefs = useRef({});
+
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const [recordTime, setRecordTime] = useState(0);
+  const timerRef = useRef(null);
+
 
   const user = useSelector((store) => store.user);
   const userId = user?._id;
 
   const bottomRef = useRef(null);
+  
+  const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const recorder = new MediaRecorder(stream);   // ✅ recorder variable
+    mediaRecorderRef.current = recorder;
+
+    chunksRef.current = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+   recorder.onstop = async () => {
+  try {
+    const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "voice.webm");
+
+    const res = await axios.post(`${BASE_URL}/upload-audio`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      withCredentials: true,
+    });
+
+    const audioUrl = res.data.audioUrl;
+
+    // ✅ Optimistic UI for audio
+    const tempId = `temp-audio-${Date.now()}-${Math.random()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        _id: tempId,
+        tempId,
+        senderId: userId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        timestamp: new Date(),
+
+        messageType: "audio",
+        audioUrl,
+        audioDuration: recordTime,
+        status: "sent",
+      },
+    ]);
+
+    // ✅ Send voice message socket with callback
+    const socket = getSocket(userId);
+
+    socket.emit(
+      "sendMessage",
+      {
+        targetuserId,
+        messageType: "audio",
+        audioUrl,
+        audioDuration: recordTime,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      (ack) => {
+        console.log("✅ voice ack:", ack);
+
+        // ✅ replace temp with real messageId
+        if (ack?.status === "sent") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.tempId === tempId
+                ? { ...m, _id: ack.messageId, tempId: undefined, timestamp: ack.createdAt }
+                : m
+            )
+          );
+        } else {
+          // ❌ rollback
+          setMessages((prev) => prev.filter((m) => m.tempId !== tempId));
+          alert("Voice message failed!");
+        }
+      }
+    );
+
+    setRecordTime(0);
+  } catch (err) {
+    console.error("❌ Voice upload/send error:", err);
+    alert("Voice message upload failed!");
+  }
+};
+
+
+    recorder.start(); // ✅ FIXED (mediaRecorder ❌ -> recorder ✅)
+    setIsRecording(true);
+
+    timerRef.current = setInterval(() => {
+      setRecordTime((prev) => prev + 1);
+    }, 1000);
+
+  } catch (err) {
+    console.error("Mic permission denied:", err);
+    alert("Microphone permission needed!");
+  }
+};
+
+
+const stopRecording = () => {
+  if (!mediaRecorderRef.current) return;
+
+  mediaRecorderRef.current.stop();
+  setIsRecording(false);
+
+  clearInterval(timerRef.current);
+
+  mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+
+  chunksRef.current = []; // ✅ clean
+};
+const formatDuration = (sec) => {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+};
+const togglePlay = (msgId) => {
+  const audio = audioRefs.current[msgId];
+  if (!audio) return;
+
+  // agar same msg already playing -> pause
+  if (playingId === msgId) {
+    audio.pause();
+    setPlayingId(null);
+    return;
+  }
+
+  // ✅ koi aur audio chal raha hai toh usko pause karo
+  if (playingId && audioRefs.current[playingId]) {
+    audioRefs.current[playingId].pause();
+  }
+
+  audio.play();
+  setPlayingId(msgId);
+};
+
+
 
   // Fetch user data separately - ensures we get name even if no messages
   const fetchUserData = async (targetuserId) => {
@@ -126,25 +276,36 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           text,
           status,
           createdAt,
+
           isEdited,
           editedAt,
+
           isDeletedForEveryone,
           deletedAt,
+
           reactions,
           deletedFor,
 
-          // ✅ PIN fields
+          // ✅ Pin
           isPinned,
           pinnedAt,
+
+          // ✅ Voice
+          audioUrl,
+          audioDuration,
+          messageType,
         } = msg;
 
         return {
           _id: msg._id,
+
           senderId: SenderId?._id,
           firstName: SenderId?.firstName,
           lastName: SenderId?.lastName,
 
-          text,
+          // ✅ Text safe
+          text: text || "",
+
           status: status || "sent",
           timestamp: createdAt,
 
@@ -165,6 +326,11 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           // ✅ Pin
           isPinned: !!isPinned,
           pinnedAt: pinnedAt || null,
+
+          // ✅ Voice
+          audioUrl: audioUrl || null,
+          audioDuration: audioDuration || 0,
+          messageType: messageType || "text",
         };
       });
 
@@ -226,19 +392,38 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     }
 
     // Create notification function
-    const handleReceive = ({ _id, text, firstName, lastName, senderId, createdAt }) => {
-          setMessages((prev) => [
-        ...prev,
-        {
-          _id,
-          text,
-          firstName,
-          lastName,
-          senderId,
-          timestamp: createdAt || new Date(),
-        },
-      ]);
-    };
+const handleReceive = ({
+  _id,
+  text,
+  firstName,
+  lastName,
+  senderId,
+  createdAt,
+
+  // ✅ audio
+  messageType,
+  audioUrl,
+  audioDuration,
+}) => {
+  setMessages((prev) => [
+    ...prev,
+    {
+      _id,
+      text: text || "",
+      firstName,
+      lastName,
+      senderId,
+      timestamp: createdAt || new Date(),
+
+      // ✅ add
+      messageType: messageType || "text",
+      audioUrl: audioUrl || null,
+      audioDuration: audioDuration || 0,
+    },
+  ]);
+};
+
+
 
     const handleStatus = ({ userId, isOnline, lastSeen }) => {
       setUserStatus((prev) => ({
@@ -1059,11 +1244,47 @@ useEffect(() => {
                   <div className="relative flex items-start gap-3">
                     {/* Text */}
                     <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1 pr-2">
-                      {msg.isDeletedForEveryone ? (
-                        <i className="text-gray-300 opacity-80">This message was deleted</i>
-                      ) : (
-                        msg.text
-                      )}
+                     {msg.messageType === "audio" ? (
+                      <div className="flex items-center gap-3 w-full max-w-[280px]">
+                        
+                        {/* ✅ Custom Play Button */}
+                        <button
+                          onClick={() => togglePlay(msg._id)}
+                          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+                          title={playingId === msg._id ? "Pause" : "Play"}
+                        >
+                          {playingId === msg._id ? "⏸️" : "▶️"}
+                        </button>
+
+                        {/* ✅ Audio Hidden but controlled */}
+                        <audio
+                          ref={(el) => (audioRefs.current[msg._id] = el)}
+                          src={msg.audioUrl}
+                          onEnded={() => setPlayingId(null)}
+                          className="hidden"
+                        />
+
+                        {/* ✅ Duration + bar */}
+                        <div className="flex flex-col flex-1">
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className={`h-full bg-green-400 transition-all duration-300 ${
+                                playingId === msg._id ? "w-full" : "w-0"
+                              }`}
+                            />
+                          </div>
+
+                          <div className="flex justify-between text-[11px] text-gray-300 mt-1">
+                            <span>🎙️ Voice</span>
+                            <span>{formatDuration(msg.audioDuration)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : msg.isDeletedForEveryone ? (
+                      <i className="text-gray-300 opacity-80">This message was deleted</i>
+                    ) : (
+                      msg.text
+                    )}
                     </div>
 
                     {/* Top-right actions */}
@@ -1204,19 +1425,15 @@ useEffect(() => {
           </button>
         ) : (
           <button
-            onClick={startListening}
+            onClick={isRecording ? stopRecording : startRecording}
             className={`p-3 rounded-2xl transition-all duration-300 flex-shrink-0 backdrop-blur-sm border group ${
-              listening 
-                ? "bg-red-500/80 hover:bg-red-600/80 border-red-400/50 shadow-lg shadow-red-500/25" 
+              isRecording
+                ? "bg-red-500/80 hover:bg-red-600/80 border-red-400/50 shadow-lg shadow-red-500/25"
                 : "bg-gray-700/50 hover:bg-gray-600/50 border-gray-600/30 hover:border-gray-500/50"
             }`}
-            title={listening ? "Stop Recording" : "Voice Message"}
+            title={isRecording ? "Stop Recording" : "Record Voice"}
           >
-            <svg className={`h-5 w-5 transition-all duration-300 ${
-              listening ? "text-white animate-pulse" : "text-gray-300 group-hover:text-white group-hover:scale-110"
-            }`} fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-            </svg>
+            {isRecording ? `⏹️ ${recordTime}s` : "🎙️"}
           </button>
         )}
       </div>
