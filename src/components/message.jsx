@@ -38,11 +38,13 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [playingId, setPlayingId] = useState(null);
   const audioRefs = useRef({});
-
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const [recordTime, setRecordTime] = useState(0);
   const timerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
 
 
   const user = useSelector((store) => store.user);
@@ -50,6 +52,96 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
   const bottomRef = useRef(null);
   
+  const handleMediaSelect = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    setIsUploadingMedia(true);
+
+    // ✅ Upload to backend (Cloudinary)
+    const formData = new FormData();
+    formData.append("media", file);
+
+    const res = await axios.post(`${BASE_URL}/upload-media`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      withCredentials: true,
+    });
+
+    const {
+      mediaUrl,
+      mediaType,
+      fileName,
+      fileSize,
+      mediaPublicId,
+    } = res.data;
+
+    // ✅ optimistic UI
+    const tempId = `temp-media-${Date.now()}-${Math.random()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        _id: tempId,
+        tempId,
+        senderId: userId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        timestamp: new Date(),
+
+        messageType: "media",
+        mediaUrl,
+        mediaType,
+        fileName,
+        fileSize,
+        mediaPublicId,
+        status: "sent",
+      },
+    ]);
+
+    const socket = getSocket(userId);
+
+    // ✅ send via socket
+    socket.emit(
+      "sendMessage",
+      {
+        targetuserId,
+        messageType: "media",
+        mediaUrl,
+        mediaType,
+        fileName,
+        fileSize,
+        mediaPublicId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      (ack) => {
+        if (ack?.status === "sent") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.tempId === tempId
+                ? { ...m, _id: ack.messageId, tempId: undefined, timestamp: ack.createdAt }
+                : m
+            )
+          );
+        } else {
+          // rollback
+          setMessages((prev) => prev.filter((m) => m.tempId !== tempId));
+          alert("Media send failed!");
+        }
+      }
+    );
+
+    // ✅ reset file input (same file select again possible)
+    e.target.value = "";
+  } catch (err) {
+    console.error("❌ Media upload error:", err);
+    alert("Media upload failed!");
+  } finally {
+    setIsUploadingMedia(false);
+  }
+};
+
   const startRecording = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -149,47 +241,46 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     console.error("Mic permission denied:", err);
     alert("Microphone permission needed!");
   }
-};
+  };
 
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current) return;
 
-const stopRecording = () => {
-  if (!mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
 
-  mediaRecorderRef.current.stop();
-  setIsRecording(false);
+    clearInterval(timerRef.current);
 
-  clearInterval(timerRef.current);
+    mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
 
-  mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    chunksRef.current = []; // ✅ clean
+  };
 
-  chunksRef.current = []; // ✅ clean
-};
-const formatDuration = (sec) => {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s < 10 ? "0" : ""}${s}`;
-};
-const togglePlay = (msgId) => {
-  const audio = audioRefs.current[msgId];
-  if (!audio) return;
+  const formatDuration = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
 
-  // agar same msg already playing -> pause
-  if (playingId === msgId) {
-    audio.pause();
-    setPlayingId(null);
-    return;
-  }
+  const togglePlay = (msgId) => {
+    const audio = audioRefs.current[msgId];
+    if (!audio) return;
 
-  // ✅ koi aur audio chal raha hai toh usko pause karo
-  if (playingId && audioRefs.current[playingId]) {
-    audioRefs.current[playingId].pause();
-  }
+    // agar same msg already playing -> pause
+    if (playingId === msgId) {
+      audio.pause();
+      setPlayingId(null);
+      return;
+    }
 
-  audio.play();
-  setPlayingId(msgId);
-};
+    // ✅ koi aur audio chal raha hai toh usko pause karo
+    if (playingId && audioRefs.current[playingId]) {
+      audioRefs.current[playingId].pause();
+    }
 
-
+    audio.play();
+    setPlayingId(msgId);
+  };
 
   // Fetch user data separately - ensures we get name even if no messages
   const fetchUserData = async (targetuserId) => {
@@ -294,6 +385,11 @@ const togglePlay = (msgId) => {
           audioUrl,
           audioDuration,
           messageType,
+          mediaUrl,
+          mediaType,
+          fileName,
+          fileSize,
+          mediaPublicId,
         } = msg;
 
         return {
@@ -331,6 +427,12 @@ const togglePlay = (msgId) => {
           audioUrl: audioUrl || null,
           audioDuration: audioDuration || 0,
           messageType: messageType || "text",
+
+          mediaUrl: mediaUrl || null,
+          mediaType: mediaType || null,
+          fileName: fileName || null,
+          fileSize: fileSize || 0,
+          mediaPublicId: mediaPublicId || null,
         };
       });
 
@@ -343,7 +445,6 @@ const togglePlay = (msgId) => {
       await fetchUserData(targetuserId);
     }
   };
-
 
   useEffect(() => {
     saveMessage(targetuserId);
@@ -364,7 +465,6 @@ const togglePlay = (msgId) => {
       });
 
     }, [userId, targetuserId]);
-
 
   useEffect(() => {
     if (!userId) return;
@@ -392,38 +492,54 @@ const togglePlay = (msgId) => {
     }
 
     // Create notification function
-const handleReceive = ({
-  _id,
-  text,
-  firstName,
-  lastName,
-  senderId,
-  createdAt,
-
-  // ✅ audio
-  messageType,
-  audioUrl,
-  audioDuration,
-}) => {
-  setMessages((prev) => [
-    ...prev,
-    {
+    const handleReceive = ({
       _id,
-      text: text || "",
+      text,
       firstName,
       lastName,
       senderId,
-      timestamp: createdAt || new Date(),
+      createdAt,
 
-      // ✅ add
-      messageType: messageType || "text",
-      audioUrl: audioUrl || null,
-      audioDuration: audioDuration || 0,
-    },
-  ]);
-};
+      messageType,
+      audioUrl,
+      audioDuration,
 
+      // ✅ media
+      mediaUrl,
+      mediaType,
+      fileName,
+      fileSize,
+      mediaPublicId,
+    }) => {
+      setMessages((prev) => {
+        // ✅ prevent duplicate message by _id
+        if (_id && prev.some((m) => m._id === _id)) return prev;
 
+        return [
+          ...prev,
+          {
+            _id,
+            text: text || "",
+            firstName,
+            lastName,
+            senderId,
+            timestamp: createdAt || new Date(),
+
+            messageType: messageType || "text",
+
+            audioUrl: audioUrl || null,
+            audioDuration: audioDuration || 0,
+
+            // ✅ media
+            mediaUrl: mediaUrl || null,
+            mediaType: mediaType || null,
+            fileName: fileName || null,
+            fileSize: fileSize || 0,
+            mediaPublicId: mediaPublicId || null,
+          },
+        ];
+      });
+    };
 
     const handleStatus = ({ userId, isOnline, lastSeen }) => {
       setUserStatus((prev) => ({
@@ -541,7 +657,8 @@ const handleReceive = ({
       setPinnedMsg(null);
     };
 
-
+    socket.on("connect", doJoin);
+    socket.off("receiveMessage");
     socket.on("receiveMessage", handleReceive);
     socket.on("updateUserStatus", handleStatus);
     socket.on("incoming-call", handleIncomingCall);
@@ -607,30 +724,29 @@ const handleReceive = ({
     };
   }, [userId, targetuserId, user?.firstName]);
 
-  // 🔁 Reconnect hone par room dobara join karne ke liye
-useEffect(() => {
-  if (!userId) return;
+  // Reconnect hone par room dobara join karne ke liye
+  useEffect(() => {
+    if (!userId) return;
 
-  const socket = getSocket(userId);
+    const socket = getSocket(userId);
 
-  const handleReconnect = () => {
+    const handleReconnect = () => {
 
-    socket.emit("joinChat", { targetuserId }, (res) => {
-      if (res?.status === "joined") {
-        console.log("✅ Rejoined room after reconnect:", res.roomId);
-      } else {
-        console.error("❌ Failed to rejoin room:", res?.message);
-      }
-    });
-  };
+      socket.emit("joinChat", { targetuserId }, (res) => {
+        if (res?.status === "joined") {
+          console.log("✅ Rejoined room after reconnect:", res.roomId);
+        } else {
+          console.error("❌ Failed to rejoin room:", res?.message);
+        }
+      });
+    };
 
-  socket.on("reconnect", handleReconnect);
+    socket.on("reconnect", handleReconnect);
 
-  return () => {
-    socket.off("reconnect", handleReconnect);
-  };
-}, [userId, targetuserId]);
-
+    return () => {
+      socket.off("reconnect", handleReconnect);
+    };
+  }, [userId, targetuserId]);
 
   // Handle incoming call actions
   const handleAcceptCall = () => {
@@ -728,7 +844,7 @@ useEffect(() => {
         },
         (res) => {
           if (res?.status === "sent") {
-            // ✅ Confirm message
+            // Confirm message
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.tempId === tempId
@@ -751,6 +867,7 @@ useEffect(() => {
         }
       );
       };
+
       const openDeleteModal = (msg) => {
         console.log("🟡 openDeleteModal called:", msg);
         setSelectedMsg(msg);
@@ -758,34 +875,22 @@ useEffect(() => {
       };
 
       const deleteForMe = () => {
-  console.log("🔴 deleteForMe clicked", {
-    selectedMsg,
-    chatId,
-    userId,
-  });
 
-  if (!selectedMsg?._id || !chatId) {
-    console.log("❌ Missing selectedMsg._id or chatId");
-    return;
-  }
+        if (!selectedMsg?._id || !chatId) {
+          console.log("❌ Missing selectedMsg._id or chatId");
+          return;
+        }
 
-  const socket = getSocket(userId);
+        const socket = getSocket(userId);
 
-  console.log("📤 emitting delete-message-for-me", {
-    chatId,
-    messageId: selectedMsg._id,
-  });
+        socket.emit("delete-message-for-me", {
+          chatId,
+          messageId: selectedMsg._id,
+        });
 
-  console.log("🟢 socket connected?", socket.connected);
-  socket.emit("delete-message-for-me", {
-    chatId,
-    messageId: selectedMsg._id,
-  });
-
-  setShowDeleteModal(false);
-  setSelectedMsg(null);
-};
-
+        setShowDeleteModal(false);
+        setSelectedMsg(null);
+      };
 
       const deleteForEveryone = () => {
         if (!selectedMsg?._id || !chatId) return;
@@ -1218,7 +1323,9 @@ useEffect(() => {
             }
 
             const msg = item;
-            const isOwnMessage = user.firstName === msg.firstName;
+            // const isOwnMessage = user.firstName === msg.firstName;
+            const isOwnMessage = msg.senderId === userId;
+
             const isTempMessage = msg.tempId;
             return (
               <div
@@ -1245,46 +1352,68 @@ useEffect(() => {
                     {/* Text */}
                     <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1 pr-2">
                      {msg.messageType === "audio" ? (
-                      <div className="flex items-center gap-3 w-full max-w-[280px]">
-                        
-                        {/* ✅ Custom Play Button */}
-                        <button
-                          onClick={() => togglePlay(msg._id)}
-                          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
-                          title={playingId === msg._id ? "Pause" : "Play"}
-                        >
-                          {playingId === msg._id ? "⏸️" : "▶️"}
-                        </button>
+                        // audio UI
+                        <div className="flex items-center gap-3 w-full max-w-[280px]">
+                          <button
+                            onClick={() => togglePlay(msg._id)}
+                            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+                            title={playingId === msg._id ? "Pause" : "Play"}
+                          >
+                            {playingId === msg._id ? "⏸️" : "▶️"}
+                          </button>
 
-                        {/* ✅ Audio Hidden but controlled */}
-                        <audio
-                          ref={(el) => (audioRefs.current[msg._id] = el)}
-                          src={msg.audioUrl}
-                          onEnded={() => setPlayingId(null)}
-                          className="hidden"
-                        />
+                          <audio
+                            ref={(el) => (audioRefs.current[msg._id] = el)}
+                            src={msg.audioUrl}
+                            onEnded={() => setPlayingId(null)}
+                            className="hidden"
+                          />
 
-                        {/* ✅ Duration + bar */}
-                        <div className="flex flex-col flex-1">
-                          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                            <div
-                              className={`h-full bg-green-400 transition-all duration-300 ${
-                                playingId === msg._id ? "w-full" : "w-0"
-                              }`}
-                            />
-                          </div>
+                          <div className="flex flex-col flex-1">
+                            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                              <div
+                                className={`h-full bg-green-400 transition-all duration-300 ${
+                                  playingId === msg._id ? "w-full" : "w-0"
+                                }`}
+                              />
+                            </div>
 
-                          <div className="flex justify-between text-[11px] text-gray-300 mt-1">
-                            <span>🎙️ Voice</span>
-                            <span>{formatDuration(msg.audioDuration)}</span>
+                            <div className="flex justify-between text-[11px] text-gray-300 mt-1">
+                              <span>🎙️ Voice</span>
+                              <span>{formatDuration(msg.audioDuration)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : msg.isDeletedForEveryone ? (
-                      <i className="text-gray-300 opacity-80">This message was deleted</i>
-                    ) : (
-                      msg.text
-                    )}
+                      ) : msg.messageType === "media" ? (
+                        // ✅ MEDIA UI
+                        msg.mediaType === "image" ? (
+                          <img
+                            src={msg.mediaUrl}
+                            alt="media"
+                            className="rounded-xl max-w-[240px] border border-white/10"
+                          />
+                        ) : msg.mediaType === "video" ? (
+                          <video
+                            src={msg.mediaUrl}
+                            controls
+                            className="rounded-xl max-w-[260px] border border-white/10"
+                          />
+                        ) : (
+                          <a
+                            href={msg.mediaUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline text-blue-200"
+                          >
+                            📄 {msg.fileName || "File"}
+                          </a>
+                        )
+                      ) : msg.isDeletedForEveryone ? (
+                        <i className="text-gray-300 opacity-80">This message was deleted</i>
+                      ) : (
+                        msg.text
+                      )}
+
                     </div>
 
                     {/* Top-right actions */}
@@ -1330,6 +1459,7 @@ useEffect(() => {
                       </button>
 
                     )}
+
                   </div>
 
                   {/* Footer: Time + Edited + Status */}
@@ -1399,6 +1529,25 @@ useEffect(() => {
         >
           <span className="text-lg group-hover:scale-110 transition-transform">😀</span>
         </button>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,video/*,.pdf"
+          onChange={handleMediaSelect}
+        />
+
+        {/* Attach Button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploadingMedia}
+          className="p-3 rounded-2xl bg-gray-700/50 hover:bg-gray-600/50 transition-all duration-300 flex-shrink-0 border border-gray-600/30 hover:border-gray-500/50 backdrop-blur-sm"
+          title="Attach media"
+        >
+          {isUploadingMedia ? "⏳" : "📎"}
+        </button>
+
 
         {showEmoji && (
           <div className="absolute bottom-24 left-6 z-10 rounded-2xl overflow-hidden shadow-2xl border border-gray-600/30">
@@ -1435,9 +1584,11 @@ useEffect(() => {
           >
             {isRecording ? `⏹️ ${recordTime}s` : "🎙️"}
           </button>
+          
         )}
       </div>
     </div>
+
     {/* delete modal */}
     {showDeleteModal && selectedMsg && (
       <div
@@ -1491,6 +1642,7 @@ useEffect(() => {
         </div>
       </div>
     )}
+
     {editingMsg && (
       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-900 w-full max-w-md rounded-2xl p-6 border border-gray-700">
@@ -1530,6 +1682,7 @@ useEffect(() => {
         </div>
       </div>
     )}
+
     {reactionMsg && (
       <div
         className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
