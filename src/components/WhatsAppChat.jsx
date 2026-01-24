@@ -4,24 +4,115 @@ import axios from "axios";
 import { BASE_URL } from "../utils/constants";
 import { useNavigate, useParams } from "react-router-dom";
 import Message from "./message";
-import { Search, Menu, Users, MessageCircle, Settings, MoreVertical, Plus, User } from "lucide-react";
+import { Search, Menu, Users, MessageCircle, Settings, MoreVertical, Plus, User, X } from "lucide-react";
 
 const WhatsAppChat = () => {
-  const { targetuserId } = useParams(); // Get targetuserId from URL if present
+  const { targetuserId, groupId } = useParams();
+  const isGroupChat = window.location.pathname.includes("/group/");
   const navigate = useNavigate();
   const [connections, setConnections] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [chatList, setChatList] = useState([]); // Store last messages for each chat
   const [activeView, setActiveView] = useState('chats'); // 'chats' or 'friends'
+  const [groups, setGroups] = useState([]);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
   const user = useSelector((store) => store.user);
   
   // Function to handle chat selection with URL update
   const handleChatSelect = (userId) => {
     setSelectedChat(userId);
-    navigate(`/app/chats/${userId}`, { replace: true });
+    navigate(`/app/chats/${userId}`);
   };
 
+  const toggleMember = (id) => {
+  setSelectedMembers((prev) =>
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  );
+};
+
+const handleCreateGroup = async () => {
+  if (!groupName.trim()) {
+    alert("Enter group name");
+    return;
+  }
+
+  if (selectedMembers.length < 2) {
+    alert("Select at least 2 members (total 3 with you)");
+    return;
+  }
+
+  try {
+    setCreatingGroup(true);
+
+    const res = await axios.post(
+      `${BASE_URL}/group/create`,
+      {
+        name: groupName.trim(),
+        members: selectedMembers,
+      },
+      { withCredentials: true }
+    );
+
+    const newGroupId = res.data?._id || res.data?.group?._id;
+
+    // ✅ reset modal
+    setShowCreateGroup(false);
+    setGroupName("");
+    setSelectedMembers([]);
+
+    // ✅ refresh list
+    fetchGroups();
+
+    // ✅ open group chat
+    if (newGroupId) {
+      navigate(`/app/chats/group/${newGroupId}`);
+    }
+  } catch (err) {
+    console.log("❌ create group error:", err);
+    alert("Group create failed");
+  } finally {
+    setCreatingGroup(false);
+  }
+};
+
+
+const fetchGroups = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/group/my`, {
+      withCredentials: true,
+    });
+
+    let data = res.data;
+
+    // ✅ if array-like object → convert to array
+    if (!Array.isArray(data) && typeof data === "object" && data.length) {
+      data = Object.values(data).filter((x) => typeof x === "object" && x?._id);
+    }
+
+    setGroups(Array.isArray(data) ? data : data?.groups || []);
+  } catch (err) {
+    console.log("❌ fetch groups error:", err);
+  }
+};
+
+
+
+  // for group
+const handleGroupSelect = (gid) => {
+  setSelectedChat(null);
+  setActiveView("groups");
+  navigate(`/app/chats/group/${gid}`); 
+};
+
+
+useEffect(() => {
+  console.log("✅ groups:", groups);
+}, [groups]);
   // Fetch connections
   useEffect(() => {
     const fetchConnections = async () => {
@@ -34,9 +125,7 @@ const WhatsAppChat = () => {
         // If targetuserId is in URL, use it; otherwise select first connection
         if (targetuserId) {
           setSelectedChat(targetuserId);
-        } else if (response.data.data && response.data.data.length > 0 && !selectedChat) {
-          setSelectedChat(response.data.data[0]._id);
-        }
+        } 
       } catch (err) {
         console.error("Error fetching connections:", err);
       }
@@ -47,6 +136,14 @@ const WhatsAppChat = () => {
       fetchConnections();
     }
   }, [targetuserId]); // Add targetuserId as dependency
+
+  useEffect(() => {
+    const localUser = JSON.parse(localStorage.getItem("user") || "null");
+    if (localUser || user) {
+      fetchGroups();
+    }
+  }, []);
+
 
   // Fetch last message for each connection
   useEffect(() => {
@@ -91,6 +188,11 @@ const WhatsAppChat = () => {
     const fullName = `${conn.firstName} ${conn.lastName}`.toLowerCase();
     return fullName.includes(searchQuery.toLowerCase());
   });
+  const filteredGroups = groups.filter((g) => {
+  const name = (g.groupInfo?.name || "").toLowerCase();
+  return name.includes(searchQuery.toLowerCase());
+});
+
 
   // Get last message for a connection
   const getLastMessage = (userId) => {
@@ -156,6 +258,7 @@ const WhatsAppChat = () => {
   }
 
   return (
+   <>
     <div className="h-screen flex bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
       {/* Left Sidebar - Navigation */}
       <div className="hidden lg:flex flex-col w-20 border-r border-gray-700/50 bg-gradient-to-b from-slate-800 to-slate-900 items-center py-6 shadow-xl">
@@ -239,17 +342,31 @@ const WhatsAppChat = () => {
             </button>
             <div>
               <h2 className="text-xl font-bold text-white">
-                {activeView === 'chats' ? 'Messages' : 'Friends'}
+                {activeView === "chats"
+                  ? "Messages"
+                  : activeView === "friends"
+                  ? "Friends"
+                  : "Groups"}
               </h2>
+
               <p className="text-sm text-gray-400 mt-0.5">
-                {activeView === 'chats' ? `${connections.length} conversations` : `${connections.length} friends`}
+                {activeView === "chats"
+                  ? `${connections.length} conversations`
+                  : activeView === "friends"
+                  ? `${connections.length} friends`
+                  : `${groups.length} groups`}
               </p>
+
             </div>
           </div>
           <div className="flex items-center space-x-2">
             {activeView === 'chats' && (
               <>
-                <button className="p-2.5 rounded-xl hover:bg-gray-700/50 transition-colors group">
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="p-2.5 rounded-xl hover:bg-gray-700/50 transition-colors group"
+                  title="Create Group"
+                >
                   <Plus className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                 </button>
                 <button className="p-2.5 rounded-xl hover:bg-gray-700/50 transition-colors group">
@@ -261,34 +378,53 @@ const WhatsAppChat = () => {
         </div>
 
         {/* Tabs for Chats and Friends */}
-        <div className="flex border-b border-gray-700/50 bg-slate-800/50">
-          <button
-            onClick={() => setActiveView('chats')}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
-              activeView === 'chats'
-                ? 'text-white bg-gradient-to-r from-blue-500/20 to-blue-500/20'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
-            }`}
-          >
-            Messages
-            {activeView === 'chats' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"></div>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveView('friends')}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
-              activeView === 'friends'
-                ? 'text-white bg-gradient-to-r from-blue-500/20 to-pink-500/20'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
-            }`}
-          >
-            Friends
-            {activeView === 'friends' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-pink-500"></div>
-            )}
-          </button>
-        </div>
+       <div className="flex border-b border-gray-700/50 bg-slate-800/50">
+  {/* Chats */}
+  <button
+    onClick={() => setActiveView("chats")}
+    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
+      activeView === "chats"
+        ? "text-white bg-gradient-to-r from-blue-500/20 to-blue-500/20"
+        : "text-gray-400 hover:text-white hover:bg-gray-700/30"
+    }`}
+  >
+    Chats
+    {activeView === "chats" && (
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"></div>
+    )}
+  </button>
+
+  {/* Friends */}
+  <button
+    onClick={() => setActiveView("friends")}
+    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
+      activeView === "friends"
+        ? "text-white bg-gradient-to-r from-blue-500/20 to-pink-500/20"
+        : "text-gray-400 hover:text-white hover:bg-gray-700/30"
+    }`}
+  >
+    Friends
+    {activeView === "friends" && (
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-pink-500"></div>
+    )}
+  </button>
+
+  {/* Groups */}
+  <button
+    onClick={() => setActiveView("groups")}
+    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-300 relative ${
+      activeView === "groups"
+        ? "text-white bg-gradient-to-r from-purple-500/20 to-purple-500/20"
+        : "text-gray-400 hover:text-white hover:bg-gray-700/30"
+    }`}
+  >
+    Groups
+    {activeView === "groups" && (
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-purple-500"></div>
+    )}
+  </button>
+</div>
+
 
         {/* Search Bar */}
         <div className="px-6 py-4 bg-slate-800/30">
@@ -296,7 +432,13 @@ const WhatsAppChat = () => {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder={activeView === 'chats' ? "Search conversations..." : "Search friends..."}
+              placeholder={
+                activeView === "chats"
+                  ? "Search chats..."
+                  : activeView === "friends"
+                  ? "Search friends..."
+                  : "Search groups..."
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-gray-700/50 text-white placeholder-gray-400 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-gray-700/70 transition-all duration-300 border border-gray-600/30"
@@ -306,7 +448,40 @@ const WhatsAppChat = () => {
 
         {/* Chat List or Friends List */}
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-          {activeView === 'friends' ? (
+          {activeView === "groups" ? (
+              //  GROUPS TAB LIST
+              <div className="space-y-2 p-2">
+                {filteredGroups.length === 0 ? (
+                  <p className="text-gray-400 text-sm px-4 py-6">
+                    No groups found
+                  </p>
+                ) : (
+                  filteredGroups.map((g) => (
+                    <div
+                      key={g._id}
+                      onClick={() => handleGroupSelect(g._id)}
+                      className="group px-4 py-4 cursor-pointer transition-all duration-300 rounded-2xl mx-2 border relative overflow-hidden hover:bg-gradient-to-r hover:from-gray-700/30 hover:to-gray-600/20 border-transparent hover:border-gray-600/30"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-600/30 flex items-center justify-center">
+                          <Users className="w-7 h-7 text-white" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold truncate text-lg group-hover:text-purple-300 transition-colors">
+                            {g.groupInfo?.name || "Group"}
+                          </h3>
+                          <p className="text-sm text-gray-400 truncate">
+                            {g.participants?.length || 0} members
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) :
+          activeView === 'friends' ? (
             // Friends List View
             <div className="space-y-1 p-2">
               {filteredConnections.map((connection) => {
@@ -366,6 +541,7 @@ const WhatsAppChat = () => {
               })}
             </div>
           ) : (
+            
             // Chat List View
             <div className="space-y-1 p-2">
               {filteredConnections.map((connection) => {
@@ -450,7 +626,9 @@ const WhatsAppChat = () => {
 
       {/* Right Panel - Active Chat */}
       <div className="hidden md:flex flex-1 flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
-        {selectedChat ? (
+        {isGroupChat ? (
+          <MessageWrapper groupId={groupId} />
+        ) : selectedChat ? (
           <MessageWrapper targetuserId={selectedChat} />
         ) : (
           <div className="flex-1 flex items-center justify-center text-white">
@@ -666,17 +844,111 @@ const WhatsAppChat = () => {
         )}
       </div>
     </div>
+    {showCreateGroup && (
+  <div
+    className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+    onClick={() => setShowCreateGroup(false)}
+  >
+    <div
+      className="bg-slate-900 w-[95%] max-w-lg rounded-2xl p-6 border border-gray-700"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-white font-bold text-xl flex items-center gap-2">
+          <Users size={22} /> Create Group
+        </h2>
+
+        <button
+          onClick={() => setShowCreateGroup(false)}
+          className="p-2 rounded-xl hover:bg-gray-800 text-white"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Group Name */}
+      <input
+        value={groupName}
+        onChange={(e) => setGroupName(e.target.value)}
+        placeholder="Enter Group Name..."
+        className="w-full px-4 py-3 rounded-xl bg-gray-800 text-white border border-gray-600 focus:outline-none mb-4"
+      />
+
+      {/* Connections Select */}
+      <div className="max-h-[300px] overflow-y-auto space-y-2 border border-gray-700 rounded-xl p-3">
+        {connections.map((u) => (
+          <div
+            key={u._id}
+            onClick={() => toggleMember(u._id)}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition ${
+              selectedMembers.includes(u._id)
+                ? "bg-blue-600/20 border-blue-500"
+                : "bg-gray-800 border-gray-700 hover:bg-gray-700"
+            }`}
+          >
+            <img
+              src={u.photoUrl || "https://via.placeholder.com/40"}
+              alt="user"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+
+            <div className="flex-1">
+              <p className="text-white font-medium">
+                {u.firstName} {u.lastName}
+              </p>
+            </div>
+
+            {selectedMembers.includes(u._id) && (
+              <span className="text-blue-400 font-bold">✓</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-gray-300 text-sm mt-3">
+        Selected: <span className="font-bold">{selectedMembers.length}</span>
+      </p>
+
+      <div className="flex gap-3 mt-5">
+        <button
+          onClick={() => setShowCreateGroup(false)}
+          className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleCreateGroup}
+          disabled={creatingGroup}
+          className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+        >
+          {creatingGroup ? "Creating..." : "Create"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+    </>
   );
+  
 };
 
 // Wrapper component to handle Message component with proper styling
-const MessageWrapper = ({ targetuserId }) => {
+const MessageWrapper = ({ targetuserId, groupId }) => {
   return (
     <div className="h-full flex flex-col">
-      <Message key={targetuserId} targetuserId={targetuserId} />
+      {groupId ? (
+        <Message key={groupId} groupId={groupId} />
+      ) : (
+        <Message key={targetuserId} targetuserId={targetuserId} />
+      )}
     </div>
   );
 };
+
+
 
 export default WhatsAppChat;
 

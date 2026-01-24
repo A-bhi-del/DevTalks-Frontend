@@ -13,6 +13,8 @@ import IncomingCall from "./IncomingCall";
 const Message = ({ targetuserId: propTargetUserId }) => {
   const { targetuserId: paramTargetUserId } = useParams();
   const targetuserId = propTargetUserId || paramTargetUserId; // Use prop if provided, else use params
+  const { groupId } = useParams();   // ✅ group route support
+  const isGroup = !!groupId;
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [groupedMessages, setGroupedMessages] = useState([]);
@@ -51,6 +53,19 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const userId = user?._id;
 
   const bottomRef = useRef(null);
+  
+  const downloadFile = async (url, fileName = "file.pdf") => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   
   const handleMediaSelect = async (e) => {
   const file = e.target.files?.[0];
@@ -103,8 +118,20 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
     // ✅ send via socket
     socket.emit(
-      "sendMessage",
-      {
+ isGroup ? "sendGroupMessage" : "sendMessage",
+  isGroup
+    ? {
+        groupId,
+        messageType: "media",
+        mediaUrl,
+        mediaType,
+        fileName,
+        fileSize,
+        mediaPublicId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      }
+    : {
         targetuserId,
         messageType: "media",
         mediaUrl,
@@ -193,8 +220,17 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     const socket = getSocket(userId);
 
     socket.emit(
-      "sendMessage",
-      {
+  isGroup ? "sendGroupMessage" : "sendMessage",
+  isGroup
+    ? {
+        groupId,
+        messageType: "audio",
+        audioUrl,
+        audioDuration: recordTime,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      }
+    : {
         targetuserId,
         messageType: "audio",
         audioUrl,
@@ -329,13 +365,21 @@ const Message = ({ targetuserId: propTargetUserId }) => {
   const saveMessage = async (targetuserId) => {
     try {
       // First fetch user data (this ensures name is always set)
-      await fetchUserData(targetuserId);
+      if (!isGroup && targetuserId) {
+        await fetchUserData(targetuserId);
+      }
+
 
       // Then fetch messages
-      const messageSave = await axios.get(`${BASE_URL}/chat/${targetuserId}`, {
-        withCredentials: true,
-      });
+      const messageSave = isGroup
+        ? await axios.get(`${BASE_URL}/group/${groupId}`, { withCredentials: true })
+        : await axios.get(`${BASE_URL}/chat/${targetuserId}`, { withCredentials: true });
+
       setChatId(messageSave?.data?._id);
+      if (isGroup) {
+        setRecipientName(messageSave?.data?.groupInfo?.name || "Group");
+      }
+
 
       // Try to get user data from messages if available (may have more recent status)
       const recipientMsg = messageSave?.data?.messages?.find(
@@ -390,6 +434,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           fileName,
           fileSize,
           mediaPublicId,
+          downloadUrl,
         } = msg;
 
         return {
@@ -433,6 +478,8 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           fileName: fileName || null,
           fileSize: fileSize || 0,
           mediaPublicId: mediaPublicId || null,
+          downloadUrl: downloadUrl || null,
+
         };
       });
 
@@ -460,9 +507,10 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         targetuserId,
       });
 
-      socket.emit("mark-messages-read", {
-        targetuserId,
-      });
+      if (!isGroup) {
+  socket.emit("mark-messages-read", { targetuserId });
+}
+
 
     }, [userId, targetuserId]);
 
@@ -476,14 +524,17 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
     // const doJoin = () => socket.emit("joinChat", { targetuserId });
     const doJoin = () => {
-      socket.emit("joinChat", { targetuserId }, (res) => {
-        if (res?.status === "joined") {
-          console.log("✅ Joined chat room:", res.roomId);
-        } else {
-          console.error("❌ Failed to join room:", res?.message);
-        }
-      });
+      if (isGroup) {
+        socket.emit("joinGroup", { groupId }, (res) => {
+          console.log("✅ joined group", res);
+        });
+      } else {
+        socket.emit("joinChat", { targetuserId }, (res) => {
+          console.log("✅ joined chat", res);
+        });
+      }
     };
+
 
     if (socket.connected) {
       doJoin();
@@ -510,6 +561,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       fileName,
       fileSize,
       mediaPublicId,
+      downloadUrl,
     }) => {
       setMessages((prev) => {
         // ✅ prevent duplicate message by _id
@@ -536,6 +588,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
             fileName: fileName || null,
             fileSize: fileSize || 0,
             mediaPublicId: mediaPublicId || null,
+            downloadUrl: downloadUrl || null,
           },
         ];
       });
@@ -610,14 +663,32 @@ const Message = ({ targetuserId: propTargetUserId }) => {
     };
 
     const handleDeleteForEveryone = ({ messageId }) => {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m._id === messageId
-                  ? { ...m, text: "This message was deleted", isDeletedForEveryone: true }
-                  : m
-              )
-          );
+      console.log("🧨 delete-for-everyone received:", messageId);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id?.toString() === messageId?.toString()
+            ? {
+                ...m,
+                isDeletedForEveryone: true,
+                text: "This message was deleted",
+
+                // ✅ force remove all types
+                messageType: "text",
+                audioUrl: null,
+                audioDuration: 0,
+                mediaUrl: null,
+                mediaType: null,
+                fileName: null,
+                fileSize: 0,
+                mediaPublicId: null,
+              }
+            : m
+        )
+      );
     };
+
+
 
     const handleEdited = ({ messageId, newText, editedAt }) => {
       setMessages((prev) =>
@@ -659,7 +730,14 @@ const Message = ({ targetuserId: propTargetUserId }) => {
 
     socket.on("connect", doJoin);
     socket.off("receiveMessage");
-    socket.on("receiveMessage", handleReceive);
+    socket.off("receiveGroupMessage");
+
+    if (isGroup) {
+      socket.on("receiveGroupMessage", handleReceive);
+    } else {
+      socket.on("receiveMessage", handleReceive);
+    }
+
     socket.on("updateUserStatus", handleStatus);
     socket.on("incoming-call", handleIncomingCall);
     socket.on("call-accepted", handleCallAccepted);
@@ -835,8 +913,15 @@ const Message = ({ targetuserId: propTargetUserId }) => {
       ]);
 
       socket.emit(
-        "sendMessage",
-        {
+        isGroup ? "sendGroupMessage" : "sendMessage",
+      isGroup
+      ? {
+          groupId,
+          text: messageText,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        }
+      : {
           text: messageText,
           targetuserId,
           firstName: user.firstName,
@@ -1175,7 +1260,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Back Button - Mobile Only */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/app")}
             className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center backdrop-blur-sm"
             title="Go Back"
           >
@@ -1237,7 +1322,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
         <div className="flex items-center space-x-2 ml-4">
           {/* Back Button - Desktop */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/app")}
             className="hidden lg:flex px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 items-center justify-center text-sm font-medium text-white backdrop-blur-sm border border-white/10 hover:border-white/20"
             title="Go Back"
           >
@@ -1245,6 +1330,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           </button>
           
           {/* Call Icons */}
+{!isGroup && <>
           <button
             onClick={() => {
               console.log('📞 Voice call button clicked');
@@ -1265,6 +1351,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
           >
             <Video className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </button>
+          </>}
         </div>
       </div>
       {pinnedMsg && (
@@ -1351,7 +1438,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
                   <div className="relative flex items-start gap-3">
                     {/* Text */}
                     <div className="text-sm sm:text-base lg:text-lg break-words leading-relaxed flex-1 pr-2">
-                     {msg.messageType === "audio" ? (
+                     {msg.messageType === "audio" && !msg.isDeletedForEveryone ? (
                         // audio UI
                         <div className="flex items-center gap-3 w-full max-w-[280px]">
                           <button
@@ -1384,7 +1471,7 @@ const Message = ({ targetuserId: propTargetUserId }) => {
                             </div>
                           </div>
                         </div>
-                      ) : msg.messageType === "media" ? (
+                      ) : msg.messageType === "media" && !msg.isDeletedForEveryone ? (
                         // ✅ MEDIA UI
                         msg.mediaType === "image" ? (
                           <img
@@ -1399,21 +1486,19 @@ const Message = ({ targetuserId: propTargetUserId }) => {
                             className="rounded-xl max-w-[260px] border border-white/10"
                           />
                         ) : (
-                          <a
-                            href={msg.mediaUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline text-blue-200"
-                          >
-                            📄 {msg.fileName || "File"}
-                          </a>
-                        )
+                                                
+                       <a
+                        onClick={() => downloadFile(msg.mediaUrl, msg.fileName || "file.pdf")}
+                        className="underline text-blue-200"
+                      >
+                        📄 Download {msg.fileName || "File"}
+                      </a>
+                      )
                       ) : msg.isDeletedForEveryone ? (
                         <i className="text-gray-300 opacity-80">This message was deleted</i>
                       ) : (
                         msg.text
                       )}
-
                     </div>
 
                     {/* Top-right actions */}

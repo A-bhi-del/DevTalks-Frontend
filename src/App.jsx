@@ -39,6 +39,7 @@ function AppContent() {
           <Route path="/app/message/:targetuserId" element={<WhatsAppChat />} />
           <Route path="/app/chats" element={<WhatsAppChat />} />
           <Route path="/app/chats/:targetuserId" element={<WhatsAppChat />} />
+          <Route path="/app/chats/group/:groupId" element={<WhatsAppChat />} />
         </Route>
         
         {/* Auth Routes - Standalone */}

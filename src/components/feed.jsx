@@ -79,7 +79,7 @@ const FeedPage = () => {
       return () => clearTimeout(timeout);
     }
     getFeed();
-  }, [user, feed]); // Add dependencies
+  }, [user]); // Add dependencies
 
   // Adjust currentIndex when feed changes (when a card is removed)
   useEffect(() => {
@@ -93,7 +93,7 @@ const FeedPage = () => {
         setCurrentIndex(currentIndex - 1);
       }
     }
-  }, [feed.length, currentIndex]);
+  }, [feed, currentIndex]);
 
   useEffect(() => {
     if (!feed) return;    // If feed becomes empty, reset index to 0
