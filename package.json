@@ -16,6 +16,7 @@
     "emoji-picker-react": "^4.13.2",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.541.0",
+    "mediasoup-client": "^3.18.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-redux": "^9.2.0",

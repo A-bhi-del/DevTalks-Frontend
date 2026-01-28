@@ -5,4 +5,9 @@ export default defineConfig({
   plugins: [
     tailwindcss()
   ],
+  server: {
+    allowedHosts: [
+      'buying-auctions-renewable-partnership.trycloudflare.com'
+    ]
+  }
 });

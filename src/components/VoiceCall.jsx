@@ -1,52 +1,84 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import MediaCall from "../utils/mediaSoupClient";
+import getSocket from "../utils/socket";
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
 
-const VoiceCall = ({ isOpen, onClose, recipientName, recipientId }) => {
+const VoiceCall = ({ isOpen, onClose, recipientName, recipientId, callId, localUserId, isCaller = false }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
-  const [callStatus, setCallStatus] = useState('connecting'); // connecting, ringing, connected, ended
+  const [callStatus, setCallStatus] = useState(isCaller ? 'ringing' : 'connecting');
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  
-  const localAudioRef = useRef(null);
-  const remoteAudioRef = useRef(null);
-  const peerConnectionRef = useRef(null);
-  const intervalRef = useRef(null);
 
-  // Initialize call
+  const mediaCallRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+  const intervalRef = useRef(null);
+  const socket = getSocket();
+
+  // Socket Event Listeners for Call Signaling
   useEffect(() => {
-    if (isOpen) {
-      console.log('🎤 VoiceCall component mounted - initializing call');
+    if (!isOpen || !callId) return;
+
+    const handleAccepted = (data) => {
+      if (data.callId === callId) {
+        console.log("✅ Voice Call Accepted by remote user");
+        setCallStatus('connected');
+      }
+    };
+
+    const handleRejected = (data) => {
+      if (data.callId === callId) {
+        setCallStatus('rejected');
+        setTimeout(endCallAndClose, 2000);
+      }
+    };
+
+    const handleEnded = (data) => {
+      if (data.callId === callId) {
+        setCallStatus('ended');
+        setTimeout(endCallAndClose, 2000);
+      }
+    };
+
+    socket.on('call-accepted', handleAccepted);
+    socket.on('call-rejected', handleRejected);
+    socket.on('call-ended', handleEnded);
+
+    return () => {
+      socket.off('call-accepted', handleAccepted);
+      socket.off('call-rejected', handleRejected);
+      socket.off('call-ended', handleEnded);
+    };
+  }, [isOpen, callId, socket]);
+
+  // Auto-end if no answer after 30s
+  useEffect(() => {
+    if (isCaller && callStatus === 'ringing') {
+      const timeout = setTimeout(() => {
+        setCallStatus('no-answer');
+        setTimeout(endCallAndClose, 2000);
+      }, 30000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isCaller, callStatus]);
+
+  // Initialize MediaSoup when component opens
+  useEffect(() => {
+    if (isOpen && callId) {
       initializeCall();
     }
     return () => {
-      console.log('🎤 VoiceCall component unmounting - cleaning up');
+      if (mediaCallRef.current) {
+        mediaCallRef.current.close();
+      }
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      // Don't auto-end call on unmount - let user control it
-      // endCall();
     };
-  }, [isOpen]);
-
-  // Handle ESC key to end call
-  useEffect(() => {
-    const handleKeyPress = (event) => {
-      if (event.key === 'Escape' && isOpen) {
-        console.log('📞 ESC key pressed - ending call');
-        endCall();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyPress);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyPress);
-    };
-  }, [isOpen]);
+  }, [isOpen, callId]);
 
   // Call duration timer
   useEffect(() => {
@@ -54,66 +86,60 @@ const VoiceCall = ({ isOpen, onClose, recipientName, recipientId }) => {
       intervalRef.current = setInterval(() => {
         setCallDuration(prev => prev + 1);
       }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
     }
+    return () => clearInterval(intervalRef.current);
   }, [callStatus]);
+
+  // Sync audio ref when remote stream changes
+  useEffect(() => {
+    if (remoteStream && remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   const initializeCall = async () => {
     try {
-      console.log('🎤 Initializing voice call...');
-      setCallStatus('connecting');
-      
-      // Get user media for microphone
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
-        video: false 
-      });
-      
-      console.log('🎤 Microphone access granted');
-      setLocalStream(stream);
-      
-      // Set up local audio
-      if (localAudioRef.current) {
-        localAudioRef.current.srcObject = stream;
-        console.log('🎤 Local audio stream set up');
-      }
-      
-      // Simulate call progression
-      console.log('🎤 Call status: connecting');
-      setTimeout(() => {
-        console.log('🎤 Call status: ringing');
-        setCallStatus('ringing');
-      }, 1000);
-      
-      setTimeout(() => {
-        console.log('🎤 Call status: connected');
+      console.log("🎤 Initializing Voice Call with MediaSoup...");
+      // audioOnly: true for voice calls
+      mediaCallRef.current = new MediaCall(callId, localUserId, { audioOnly: true });
+
+      // CRITICAL: Set the callback BEFORE calling init()
+      mediaCallRef.current.onRemoteStream = (remote) => {
+        console.log("🔊 Received Remote Audio Stream");
+        setRemoteStream(remote);
+        // If we receive a stream, we are definitely connected
         setCallStatus('connected');
-      }, 3000);
-      
-      // Don't auto-end the call - let user control it
-      
-    } catch (error) {
-      console.error('❌ Error accessing microphone:', error);
+      };
+
+      // Initialize local stream (audio only) - this also consumes existing producers
+      const stream = await mediaCallRef.current.init();
+      setLocalStream(stream);
+
+    } catch (err) {
+      console.error('❌ Voice Call init failed:', err);
       setCallStatus('ended');
     }
   };
 
-  const endCall = () => {
-    console.log('📞 Ending voice call...');
+  const endCallAndClose = async () => {
+    if (mediaCallRef.current) {
+      mediaCallRef.current.close();
+    }
     if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      console.log('📞 Local stream stopped');
+      localStream.getTracks().forEach(t => t.stop());
     }
-    if (remoteStream) {
-      remoteStream.getTracks().forEach(track => track.stop());
-      console.log('📞 Remote stream stopped');
+
+    // Notify backend
+    try {
+      await axios.post(`${BASE_URL}/call/end`, { callId }, { withCredentials: true });
+    } catch (err) {
+      console.error("Error ending call API:", err);
     }
+
     setCallStatus('ended');
-    console.log('📞 Call ended, closing interface...');
-    setTimeout(() => onClose(), 1000);
+    setTimeout(() => {
+      onClose();
+    }, 1000);
   };
 
   const toggleMute = () => {
@@ -139,80 +165,78 @@ const VoiceCall = ({ isOpen, onClose, recipientName, recipientId }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!isOpen) {
-    console.log('🎤 VoiceCall not open - not rendering');
-    return null;
-  }
-
-  console.log('🎤 VoiceCall rendering - isOpen:', isOpen);
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center relative">
-        {/* Close Button */}
-        <button
-          onClick={() => {
-            console.log('🎤 Close button clicked');
-            onClose();
-          }}
-          className="absolute top-4 right-4 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
-          title="Close Call"
-        >
-          ✕
-        </button>
-        {/* Call Status */}
-        <div className="mb-6">
-          <div className="w-24 h-24 bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <Phone className="w-12 h-12 text-white" />
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+      <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-3xl p-8 max-w-md w-full mx-4 text-center shadow-2xl border border-gray-700">
+
+        {/* Call Status Indicator */}
+        <div className="mb-8">
+          {/* Avatar/Icon */}
+          <div className={`w-28 h-28 mx-auto mb-6 rounded-full flex items-center justify-center shadow-lg ${callStatus === 'connected'
+            ? 'bg-green-500 shadow-green-500/30'
+            : callStatus === 'ringing'
+              ? 'bg-blue-500 shadow-blue-500/30 animate-pulse'
+              : 'bg-gray-600'
+            }`}>
+            <Phone className="w-14 h-14 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{recipientName}</h2>
-          <p className="text-gray-600">
+
+          {/* Recipient Name */}
+          <h2 className="text-2xl font-bold text-white mb-2">{recipientName}</h2>
+
+          {/* Status Text */}
+          <p className={`text-lg ${callStatus === 'connected' ? 'text-green-400' : 'text-gray-400'}`}>
             {callStatus === 'connecting' && 'Connecting...'}
             {callStatus === 'ringing' && 'Ringing...'}
             {callStatus === 'connected' && formatDuration(callDuration)}
             {callStatus === 'ended' && 'Call ended'}
+            {callStatus === 'rejected' && 'Call rejected'}
+            {callStatus === 'no-answer' && 'No answer'}
           </p>
         </div>
 
-        {/* Audio Elements */}
-        <audio ref={localAudioRef} autoPlay muted />
+        {/* Hidden Audio Elements */}
         <audio ref={remoteAudioRef} autoPlay />
 
         {/* Call Controls */}
-        <div className="flex justify-center space-x-6 mb-6">
+        <div className="flex justify-center space-x-6">
           {/* Mute Button */}
           <button
             onClick={toggleMute}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
-              isMuted ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
+            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all transform hover:scale-105 ${isMuted
+              ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+              : 'bg-gray-700 text-white hover:bg-gray-600'
+              }`}
           >
-            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
           </button>
 
           {/* Speaker Button */}
           <button
             onClick={toggleSpeaker}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
-              isSpeakerOn ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
+            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all transform hover:scale-105 ${isSpeakerOn
+              ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+              : 'bg-gray-700 text-white hover:bg-gray-600'
+              }`}
           >
-            {isSpeakerOn ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+            {isSpeakerOn ? <Volume2 className="w-7 h-7" /> : <VolumeX className="w-7 h-7" />}
           </button>
 
           {/* End Call Button */}
           <button
-            onClick={endCall}
-            className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+            onClick={endCallAndClose}
+            className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-all transform hover:scale-110 shadow-lg shadow-red-500/50"
           >
-            <PhoneOff className="w-6 h-6" />
+            <PhoneOff className="w-7 h-7" />
           </button>
         </div>
 
-        {/* Call Info */}
-        <div className="text-sm text-gray-500">
-          {callStatus === 'connected' && 'Tap to mute/unmute'}
-        </div>
+        {/* Ringing animation text */}
+        {callStatus === 'ringing' && (
+          <p className="text-sm text-gray-500 mt-8 animate-pulse">Waiting for response...</p>
+        )}
       </div>
     </div>
   );
